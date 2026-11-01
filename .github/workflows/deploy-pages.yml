@@ -35,7 +35,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run unit tests
-        run: python3 -m pytest -q tests
+        run: python3 -m unittest discover -s tests -v
 
       - name: Run live Polymarket scan
         run: |

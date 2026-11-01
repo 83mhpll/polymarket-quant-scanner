@@ -1,0 +1,3 @@
+aiohttp>=3.9
+# optional — only needed for `execute --live`
+# py-clob-client>=0.20

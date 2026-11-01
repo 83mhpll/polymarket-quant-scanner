@@ -1,0 +1,15 @@
+{
+  "max_markets": 1500,
+  "bankroll": 5000,
+  "max_capital_per_trade": 1000,
+  "min_profit_usd": 0.5,
+  "min_arb_edge": 0.003,
+  "endgame_min_price": 0.9,
+  "endgame_max_price": 0.995,
+  "endgame_max_days": 21,
+  "endgame_min_apr": 0.25,
+  "mm_capital": 1000,
+  "mm_min_daily_roi": 0.002,
+  "scan_interval": 60,
+  "alert_kinds": ["ARB", "ARB*"]
+}

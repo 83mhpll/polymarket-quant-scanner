@@ -1,0 +1,58 @@
+name: Live Polymarket Scan & Deploy Web Dashboard
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  scan-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: python3 -m pytest -q tests
+
+      - name: Run live Polymarket scan
+        run: |
+          python3 -m polyscan --max-markets 1200 scan --top 40 --no-color
+          mkdir -p site
+          cp polyscan/dashboard.html site/index.html
+          cp output/latest.json site/latest.json
+          cp output/latest.csv site/latest.csv
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

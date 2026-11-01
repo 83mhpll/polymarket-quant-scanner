@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polymarket Opportunity Scanner</title>
+<style>
+  :root { --bg:#0b0f17; --card:#121826; --line:#1f2937; --txt:#e5e7eb; --mut:#8b95a7;
+          --arb:#22c55e; --arbo:#06b6d4; --yield:#eab308; --mm:#a855f7; --sig:#64748b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+         background: var(--bg); color: var(--txt); }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--line); display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size: 18px; margin:0; letter-spacing:.2px; }
+  .spacer { flex:1; }
+  .pill { padding: 4px 11px; border-radius: 999px; background: var(--card); border:1px solid var(--line); color: var(--mut); font-size:12px; text-decoration:none; }
+  .pill.btn { color: var(--txt); cursor:pointer; }
+  .pill.btn:hover { border-color:#3b82f6; background:#1e293b; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:12px; padding: 16px 24px; }
+  .stat { background: var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .stat b { display:block; font-size:20px; margin-top:2px; }
+  .stat span { color: var(--mut); font-size:12px; }
+  .filters { padding: 0 24px 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .filters button { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer; }
+  .filters button.on { border-color:#3b82f6; background:#1e293b; }
+  .filters input { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 10px; border-radius:8px; min-width:240px; }
+  table { width: calc(100% - 48px); margin: 0 24px 40px; border-collapse: collapse; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align:left; vertical-align: top; }
+  th { color: var(--mut); font-weight:500; font-size:12px; position: sticky; top:0; background: var(--bg); cursor:pointer; }
+  td.num { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  tr.row:hover { background:#0f1522; cursor:pointer; }
+  .k { font-weight:600; font-size:11px; padding:2px 7px; border-radius:6px; color:#0b0f17; }
+  .ARB { background: var(--arb); } .ARB\* { background: var(--arbo); } .YIELD { background: var(--yield); }
+  .MM { background: var(--mm); } .SIGNAL { background: var(--sig); color:#fff; }
+  .ev { color: var(--mut); font-size:12px; }
+  a { color:#60a5fa; text-decoration:none; }
+  .detail td { background:#0f1522; color: var(--mut); font-size: 13px; }
+  .detail ul { margin:6px 0; padding-left:18px; }
+  .legs { width:100%; margin:6px 0; }
+  .legs td { padding:3px 8px; border:0; }
+  .pos { color: var(--arb); } .warn { color: #f87171; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ Polymarket Quant Opportunity Scanner</h1>
+  <span class="pill" id="status">loading…</span>
+  <span class="pill" id="ts"></span>
+  <div class="spacer"></div>
+  <button class="pill btn" id="langBtn">EN / ไทย</button>
+  <a class="pill btn" href="https://github.com/83mhpll/polymarket-quant-scanner" target="_blank">GitHub Docs ↗</a>
+</header>
+<div class="stats" id="stats"></div>
+<div class="filters" id="filters">
+  <button data-k="ALL" class="on" data-th="ทั้งหมด" data-en="All">ทั้งหมด</button>
+  <button data-k="ARB" data-th="ARB (ล็อกกำไร)" data-en="ARB (Locked)">ARB (ล็อกกำไร)</button>
+  <button data-k="ARB*" data-th="ARB* (on-chain)" data-en="ARB* (On-Chain)">ARB* (on-chain)</button>
+  <button data-k="MM" data-th="MM Rewards" data-en="MM Rewards">MM Rewards</button>
+  <button data-k="YIELD" data-th="Endgame Yield" data-en="Endgame Yield">Endgame Yield</button>
+  <button data-k="SIGNAL" data-th="Signals" data-en="Signals">Signals</button>
+  <input id="q" placeholder="ค้นหา event / market…" data-th-ph="ค้นหา event / market…" data-en-ph="Search event / market…">
+</div>
+<table>
+  <thead><tr>
+    <th data-s="kind" data-th="ประเภท" data-en="Kind">ประเภท</th><th data-s="event_title" data-th="โอกาส" data-en="Opportunity">โอกาส</th>
+    <th data-s="capital" class="num" data-th="ทุน $" data-en="Capital $">ทุน $</th><th data-s="exp_profit" class="num" data-th="กำไร $" data-en="Profit $">กำไร $</th>
+    <th data-s="roi" class="num">ROI</th><th data-s="days" class="num" data-th="วัน" data-en="Days">วัน</th><th data-s="apr" class="num">APR</th>
+    <th data-s="confidence" class="num">Conf</th><th data-s="score" class="num">Score</th>
+  </tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<script>
+let data = {opportunities: []}, kind = "ALL", sortKey = "score", sortDir = -1, open = new Set(), lang = "th";
+const $ = s => document.querySelector(s);
+const fmt = (v, d=2) => v == null ? "–" : Number(v).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
+const pct = v => v == null ? "–" : (Math.abs(v) > 50 ? ">5000%" : (v*100).toFixed(2) + "%");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function applyLang() {
+  document.querySelectorAll("[data-th]").forEach(el => { el.textContent = el.dataset[lang]; });
+  $("#q").placeholder = $("#q").dataset[lang + "Ph"];
+  render();
+}
+$("#langBtn").onclick = () => { lang = lang === "th" ? "en" : "th"; applyLang(); };
+
+async function load() {
+  for (const url of ["/api/result", "./latest.json"]) {
+    try {
+      const r = await fetch(url, {cache: "no-store"});
+      if (r.ok) { data = await r.json(); render(); return; }
+    } catch (e) {}
+  }
+  $("#status").textContent = "offline";
+}
+function render() {
+  $("#status").textContent = data.scanning ? "🔄 scanning…" : (data.last_error ? "⚠️ " + data.last_error : "✅ idle");
+  $("#ts").textContent = data.timestamp ? `last scan ${new Date(data.timestamp).toLocaleTimeString()} · ${data.duration_s}s · every ${data.interval}s` : "";
+  const ops = data.opportunities || [];
+  const arb = ops.filter(o => o.kind === "ARB");
+  const stats = [
+    ["Markets scanned", fmt(data.n_markets, 0)], ["Order books", fmt(data.n_books, 0)],
+    ["Opportunities", fmt(ops.length, 0)], ["Locked arbs", fmt(arb.length, 0)],
+    ["Arb profit (sum)", "$" + fmt(arb.reduce((a, o) => a + o.exp_profit, 0))],
+    ["MM reward est.", "$" + fmt(ops.filter(o => o.kind === "MM").reduce((a, o) => a + (o.metrics.daily_reward||0), 0)) + "/d"],
+  ];
+  $("#stats").innerHTML = stats.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+  const q = $("#q").value.toLowerCase();
+  let rows = ops.filter(o => (kind === "ALL" || o.kind === kind) &&
+    (!q || (o.event_title + " " + o.title).toLowerCase().includes(q)));
+  rows.sort((a, b) => ((a[sortKey] ?? -1e18) > (b[sortKey] ?? -1e18) ? 1 : -1) * sortDir);
+  $("#rows").innerHTML = rows.slice(0, 400).map(o => {
+    const main = `<tr class="row" data-id="${o.id}">
+      <td><span class="k ${esc(o.kind)}">${esc(o.kind)}</span><div class="ev">${esc(o.strategy)}</div></td>
+      <td><div>${esc(o.title)}</div><div class="ev">${esc(o.event_title)} · <a href="${esc(o.url)}" target="_blank">open ↗</a> · id ${o.id}</div></td>
+      <td class="num">${fmt(o.capital, 0)}</td><td class="num pos">${fmt(o.exp_profit)}</td>
+      <td class="num">${pct(o.roi)}</td><td class="num">${o.days == null ? "–" : fmt(o.days, 1)}</td>
+      <td class="num">${pct(o.apr)}</td><td class="num">${fmt(o.confidence)}</td><td class="num">${fmt(o.score)}</td></tr>`;
+    if (!open.has(o.id)) return main;
+    const legs = o.legs.map(l => `<tr><td>${esc(l.side)}</td><td>${fmt(l.size)} sh</td><td>${esc(l.outcome)}</td>
+      <td>avg ${fmt(l.avg_price, 4)}</td><td>limit ${fmt(l.price_limit, 4)}</td></tr>`).join("");
+    const notes = o.notes.map(n => `<li>${esc(n)}</li>`).join("");
+    return main + `<tr class="detail"><td></td><td colspan="8"><table class="legs">${legs}</table><ul>${notes}</ul>
+      <code>python -m polyscan execute ${o.id}</code> (dry-run) · เพิ่ม <code>--live</code> เพื่อส่งคำสั่งจริง</td></tr>`;
+  }).join("");
+  document.querySelectorAll("tr.row").forEach(tr => tr.onclick = e => {
+    if (e.target.tagName === "A") return;
+    const id = tr.dataset.id; open.has(id) ? open.delete(id) : open.add(id); render();
+  });
+}
+document.querySelectorAll("#filters button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#filters button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); kind = b.dataset.k; render();
+});
+document.querySelectorAll("th").forEach(th => th.onclick = () => {
+  const k = th.dataset.s; if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = -1; } render();
+});
+$("#q").oninput = render;
+load(); setInterval(load, 5000);
+</script>
+</body>
+</html>

@@ -44,6 +44,8 @@ def scan(markets: list[Market], books: dict[str, OrderBook], cfg: Config) -> lis
                     confidence=0.97,
                     notes=["Merge YES+NO -> 1 USDC ทันทีผ่าน CTF mergePositions หรือถือจนตลาดจบ",
                            "ความเสี่ยง: leg risk ขณะส่งคำสั่ง (ใช้ FOK)"],
+                    notes_en=["Merge YES+NO -> 1 USDC immediately via CTF mergePositions, or hold to resolution",
+                              "Execution risk: leg risk between orders (use FOK limit orders)"],
                     metrics={"sets": f.sets, "fees": f.fees, "edge_top": f.first_edge, "edge_marginal": f.last_edge,
                              "payout": 1.0, "fee_rates": fees},
                 ))
@@ -64,6 +66,7 @@ def scan(markets: list[Market], books: dict[str, OrderBook], cfg: Config) -> lis
                     ],
                     capital=f.capital, exp_profit=f.profit, roi=f.roi, days=0.0, confidence=0.93,
                     notes=["ต้อง splitPosition USDC -> YES+NO บน CTF ก่อนขาย (on-chain)"],
+                    notes_en=["Requires on-chain CTF splitPosition (USDC -> YES+NO) before selling both legs"],
                     metrics={"sets": f.sets, "fees": f.fees, "edge_top": f.first_edge},
                 ))
     return opps

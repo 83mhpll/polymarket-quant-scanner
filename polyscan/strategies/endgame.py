@@ -61,12 +61,17 @@ def scan(markets: list[Market], books: dict[str, OrderBook], cfg: Config) -> lis
             conf = max(0.05, avg_all_in - vol_pen - spread_pen - (0.3 if disputed else 0.0))
             notes = [f"Break-even win-rate {avg_all_in:.3%}; ขาดทุนสูงสุด ${cost:,.2f} ถ้าผิด",
                      f"ผลตอบแทน {roi:.2%} ใน ~{days_eff:.1f} วัน (APR {apr:.0%})"]
+            notes_en = [f"Break-even win-rate {avg_all_in:.3%}; max loss ${cost:,.2f} if wrong",
+                        f"Return {roi:.2%} over ~{days_eff:.1f} days (APR {apr:.0%})"]
             if pending:
                 notes.append("เลยวันสิ้นสุดแล้ว — รอ UMA resolve (มักเป็นช่วงความเสี่ยงต่ำ ถ้าผลชัดเจน)")
+                notes_en.append("Past end date — awaiting UMA resolution (typically low risk if outcome is clear)")
             if disputed:
                 notes.append("⚠️ มีประวัติ dispute ใน UMA")
+                notes_en.append("⚠️ Active or historical UMA dispute")
             if abs(m.one_day_change) > 0.03:
                 notes.append(f"⚠️ ราคาเคลื่อน {m.one_day_change:+.2%} ใน 24 ชม. — ตลาดยังไม่นิ่ง")
+                notes_en.append(f"⚠️ Price moved {m.one_day_change:+.2%} in 24h — market still volatile")
             opps.append(Opportunity(
                 strategy=NAME, kind=YIELD,
                 title=f"BUY {o.name} @ ≤{a + cfg.endgame_price_window:.3f} ({m.label})",
@@ -76,6 +81,7 @@ def scan(markets: list[Market], books: dict[str, OrderBook], cfg: Config) -> lis
                 capital=cost, exp_profit=profit, roi=roi, days=days_eff,
                 confidence=round(conf * (1 - math.exp(-cfg.endgame_max_days / max(days_eff, 0.1))), 3),
                 notes=notes,
+                notes_en=notes_en,
                 metrics={"break_even_p": avg_all_in, "apr": apr, "shares": sh, "fees": fees,
                          "spread": b.spread, "d1_change": m.one_day_change, "pending": pending,
                          "event_id": m.event_id},

@@ -103,6 +103,9 @@ async def scan(markets: list[Market], books: dict[str, OrderBook], cfg: Config, 
             notes=[f"z={z:+.2f} (3h move in log-odds), book imbalance={imb:+.2f}",
                    f"R:R = {gain / loss:.2f}, p_hit (heuristic) ≈ {p_hit:.0%}",
                    "สัญญาณเชิงสถิติ — มีความเสี่ยงทิศทาง ใช้ stop-loss เสมอ"],
+            notes_en=[f"z={z:+.2f} (log-odds move), book imbalance={imb:+.2f}",
+                      f"R:R = {gain / loss:.2f}, heuristic p_hit ≈ {p_hit:.0%}",
+                      "Statistical signal — carries directional risk; always enforce stop-loss"],
             metrics={"z": z, "imbalance": imb, "sigma_h": sigma, "target": tgt, "stop": stop, "mode": mode},
         ))
     return opps

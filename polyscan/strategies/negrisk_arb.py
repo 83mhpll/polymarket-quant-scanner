@@ -63,12 +63,15 @@ def scan(groups: list[EventGroup], books: dict[str, OrderBook], cfg: Config) -> 
         min_shares = max(max(b.min_order_size for b in yes_b), 5.0)
         base_conf = 0.95
         risk_notes = list(g.notes)
+        risk_notes_en = []
         if g.augmented and not g.has_other:
             base_conf = 0.55
             risk_notes.append("negRiskAugmented และไม่มี leg 'Other' — อาจมีผู้ชนะที่ไม่อยู่ในรายการ")
+            risk_notes_en.append("negRiskAugmented without an 'Other' leg — an unlisted candidate could win")
         elif g.augmented:
             base_conf = 0.85
             risk_notes.append("negRiskAugmented: อาจมีการเพิ่ม outcome ใหม่ (แยกออกจาก 'Other')")
+            risk_notes_en.append("negRiskAugmented: new outcomes may be split out from 'Other'")
 
         # (a) YES basket — only valid if the listed legs are exhaustive
         exhaustive = not (g.augmented and not g.has_other)
@@ -86,6 +89,8 @@ def scan(groups: list[EventGroup], books: dict[str, OrderBook], cfg: Config) -> 
                     confidence=base_conf * 0.97,
                     notes=risk_notes + ["จ่าย $1 ต่อชุดเมื่อ event resolve (ถือจนจบ)",
                                         "เสี่ยงกรณี event resolve แบบไม่มีผู้ชนะ (ทุก leg = NO)"],
+                    notes_en=risk_notes_en + ["Pays $1.00 per set at event resolution (hold to maturity)",
+                                              "Tail risk if event resolves with no listed winner (all legs = NO)"],
                     metrics={"sets": f.sets, "legs": n, "fees": f.fees, "edge_top": f.first_edge,
                              "payout": 1.0, "fee_rates": fees},
                 ))
@@ -106,6 +111,8 @@ def scan(groups: list[EventGroup], books: dict[str, OrderBook], cfg: Config) -> 
                     confidence=base_conf,
                     notes=risk_notes + [f"convertPositions (NegRiskAdapter) แปลง {n} NO -> {n - 1} USDC ได้ทันที",
                                         "ถ้าไม่มีผู้ชนะจะได้ N แทน N-1 (upside)"],
+                    notes_en=risk_notes_en + [f"NegRiskAdapter.convertPositions converts {n} NO -> {n - 1} USDC immediately",
+                                              "If no listed outcome wins, pays N instead of N-1 (free upside)"],
                     metrics={"sets": f.sets, "legs": n, "fees": f.fees, "edge_top": f.first_edge,
                              "payout": float(n - 1), "fee_rates": fees},
                 ))
@@ -131,6 +138,10 @@ def scan(groups: list[EventGroup], books: dict[str, OrderBook], cfg: Config) -> 
                         f"วาง GTC Maker Bid ที่ขา '{ms[anchor].label} [NO]' @ {f.worst_prices[anchor]:.3f} (0% fee) เมื่อแมตช์แล้วกวาด Taker ที่เหลืออีก {n-1} ขา",
                         f"แปลง {n} NO -> {n - 1} USDC ทันทีผ่าน NegRiskAdapter (convertPositions)",
                     ],
+                    notes_en=risk_notes_en + [
+                        f"Post GTC Maker Bid on '{ms[anchor].label} [NO]' @ {f.worst_prices[anchor]:.3f} (0% fee); once filled, sweep the remaining {n-1} legs via FOK Taker",
+                        f"Convert {n} NO -> {n - 1} USDC immediately via NegRiskAdapter.convertPositions",
+                    ],
                     metrics={"sets": f.sets, "legs": n, "fees": f.fees, "edge_top": f.first_edge,
                              "payout": float(n - 1), "fee_rates": hyb_fees, "mode": "hybrid_maker_taker", "maker_leg": anchor},
                 ))
@@ -149,6 +160,7 @@ def scan(groups: list[EventGroup], books: dict[str, OrderBook], cfg: Config) -> 
                     capital=f.capital, exp_profit=f.profit, roi=f.roi, days=0.0,
                     confidence=base_conf * 0.9,
                     notes=risk_notes + ["ต้อง split USDC ทุก leg แล้ว convert NO ทั้งหมด -> N-1 USDC (on-chain)"],
+                    notes_en=risk_notes_en + ["Requires on-chain split across legs and converting all NO -> N-1 USDC"],
                     metrics={"sets": f.sets, "legs": n, "edge_top": f.first_edge},
                 ))
     return opps

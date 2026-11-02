@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from .api import PolyClient
 from .config import Config
 from .models import Market, OrderBook
-from .strategies import binary_arb, endgame, ladder_arb, negrisk_arb, rewards_mm, stat_signal
+from .portfolio import PaperLedger, build_optimal_portfolio, kelly_fraction
+from .strategies import ALL, binary_arb, cross_market_arb, endgame, ladder_arb, negrisk_arb, rewards_mm, stat_signal
 from .strategies.base import Opportunity
 from .strategies.negrisk_arb import EventGroup
 
@@ -30,12 +31,15 @@ class ScanResult:
     opportunities: list[Opportunity]
     by_strategy: dict[str, int] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+    portfolio: dict = field(default_factory=dict)
+    paper_mtm: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp, "duration_s": self.duration_s, "n_markets": self.n_markets,
             "n_books": self.n_books, "n_negrisk_events": self.n_negrisk_events,
             "n_requests": self.n_requests, "by_strategy": self.by_strategy, "errors": self.errors,
+            "portfolio": self.portfolio, "paper_mtm": self.paper_mtm,
             "opportunities": [o.to_dict() for o in self.opportunities],
         }
 
@@ -91,7 +95,7 @@ async def _build_negrisk_groups(client: PolyClient, markets: list[Market], cfg: 
 
 async def run_scan(cfg: Config, strategies: list[str] | None = None) -> ScanResult:
     t0 = time.time()
-    enabled = set(strategies or ["binary_arb", "negrisk_arb", "ladder_arb", "endgame_yield", "rewards_mm", "stat_signal"])
+    enabled = set(strategies or ALL)
     errors: list[str] = []
     async with PolyClient(cfg) as client:
         markets = await client.fetch_markets(cfg.max_markets)
@@ -114,6 +118,7 @@ async def run_scan(cfg: Config, strategies: list[str] | None = None) -> ScanResu
             "binary_arb": lambda: binary_arb.scan(markets_all, books, cfg),
             "negrisk_arb": lambda: negrisk_arb.scan(groups, books, cfg),
             "ladder_arb": lambda: ladder_arb.scan(markets_all, books, cfg),
+            "cross_market_arb": lambda: cross_market_arb.scan(markets_all, books, cfg),
             "endgame_yield": lambda: endgame.scan(markets_all, books, cfg),
             "rewards_mm": lambda: rewards_mm.scan(markets_all, books, cfg),
         }
@@ -138,16 +143,25 @@ async def run_scan(cfg: Config, strategies: list[str] | None = None) -> ScanResu
                 log.error("stat_signal failed:\n%s", traceback.format_exc())
         n_req = client.n_requests
 
-    # de-duplicate (same legs) and rank
+    # de-duplicate (same legs), attach Kelly sizing metrics, and rank
     uniq: dict[str, Opportunity] = {}
     for o in opps:
         o.compute_score()
+        kf = kelly_fraction(o, cfg.bankroll, cfg.max_capital_per_trade)
+        o.metrics["kelly_pct"] = kf["kelly_pct"]
+        o.metrics["kelly_usd"] = kf["recommended_usd"]
         if o.id not in uniq or uniq[o.id].score < o.score:
             uniq[o.id] = o
     ranked = sorted(uniq.values(), key=lambda o: o.score, reverse=True)
+    ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    portfolio = build_optimal_portfolio(ranked, cfg)
+    ledger = PaperLedger(cfg.output_dir)
+    ledger.record_allocation(portfolio, ranked, ts)
+    paper_mtm = ledger.mark_to_market(books)
     return ScanResult(
-        timestamp=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        timestamp=ts,
         duration_s=round(time.time() - t0, 2),
         n_markets=len(markets_all), n_books=len(books), n_negrisk_events=len(groups),
         n_requests=n_req, opportunities=ranked, by_strategy=by_strategy, errors=errors,
+        portfolio=portfolio, paper_mtm=paper_mtm,
     )

@@ -39,6 +39,32 @@ def print_result(res: ScanResult, top: int = 30, color: bool = True) -> None:
               f"{_trunc(o.event_title, title_w // 2)} :: {_trunc(o.title, title_w)}")
     if not res.opportunities:
         print("  (ไม่พบโอกาสที่ผ่านเกณฑ์ในรอบนี้ — ปกติสำหรับ arb แท้ ลองลด min_arb_edge / min_profit_usd)")
+    if res.portfolio and res.portfolio.get("allocations"):
+        p = res.portfolio
+        print(f"\n{b}Optimal Quant Portfolio (Fractional Kelly + Correlation Caps){r}  "
+              f"Allocated=${p['total_allocated_usd']:,.0f}/${p['bankroll_usd']:,.0f} ({p['utilization_pct']:.1%}) | "
+              f"Exp.Profit=${p['expected_profit_usd']:,.2f} ({p['portfolio_roi']:.2%}) | "
+              f"VaR95=${p['var_95_usd']:,.2f} | Sharpe={p['sharpe_proxy']:.2f}")
+
+
+def print_portfolio(p: dict, mtm: dict | None = None) -> None:
+    if not p or not p.get("allocations"):
+        print("ยังไม่มีข้อมูลพอร์ต — รัน `python3 -m polyscan scan` ก่อน")
+        return
+    print(f"\n{BOLD}=== Optimal Quant Portfolio Allocation (Bankroll ${p['bankroll_usd']:,.0f}) ==={RESET}")
+    print(f"Allocated: ${p['total_allocated_usd']:,.2f} ({p['utilization_pct']:.1%}) | Cash Reserve: ${p['cash_reserve_usd']:,.2f}")
+    print(f"Expected Profit: ${p['expected_profit_usd']:,.2f} (ROI {p['portfolio_roi']:.2%}, Weighted APR {p['weighted_apr']:.0%}, Avg Days {p['weighted_days']:.1f})")
+    print(f"Risk Metrics: 95% VaR = ${p['var_95_usd']:,.2f} | Worst Event Stress Loss = ${p['max_drawdown_stress_usd']:,.2f} | Sharpe Proxy = {p['sharpe_proxy']:.2f}")
+    print(f"{'#':>2} {'ID':<10} {'KIND':<6} {'STRATEGY':<16} {'ALLOC $':>9} {'KELLY%':>7} {'EXP.PROF':>9} {'ROI':>7}  RATIONALE / MARKET")
+    print("-" * 120)
+    for i, a in enumerate(p["allocations"], 1):
+        print(f"{i:>2} {a['id']:<10} {a['kind']:<6} {a['strategy']:<16} {a['recommended_usd']:>9,.2f} "
+              f"{a['kelly_pct']:>6.1%} {a['expected_profit_usd']:>9,.2f} {a['roi']:>7.2%}  "
+              f"{_trunc(a['event_title'], 40)} :: {_trunc(a['title'], 45)}")
+    if mtm and mtm.get("n_positions"):
+        print(f"\n{BOLD}Paper-Trading Mark-to-Market Ledger{RESET}: {mtm['n_positions']} tracked positions | "
+              f"Cost ${mtm['total_cost_usd']:,.2f} -> Mark ${mtm['total_mark_usd']:,.2f} | "
+              f"Unrealized PnL ${mtm['unrealized_pnl_usd']:+,.2f}")
 
 
 def print_detail(o) -> None:

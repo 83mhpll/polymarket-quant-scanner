@@ -20,13 +20,21 @@
   .stat { background: var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .stat b { display:block; font-size:20px; margin-top:2px; }
   .stat span { color: var(--mut); font-size:12px; }
-  .filters { padding: 0 24px 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  . filters, .filters { padding: 0 24px 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .filters button { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer; }
   .filters button.on { border-color:#3b82f6; background:#1e293b; }
   .filters input { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 10px; border-radius:8px; min-width:240px; }
+  .port-box { margin: 0 24px 18px; background: var(--card); border: 1px solid #334155; border-radius: 12px; padding: 14px 18px; display:none; }
+  .port-box.show { display:block; }
+  .port-hdr { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+  .port-hdr h2 { font-size:15px; margin:0; }
+  .port-metrics { display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color: var(--mut); }
+  .port-metrics b { color: var(--txt); }
   table { width: calc(100% - 48px); margin: 0 24px 40px; border-collapse: collapse; }
+  .port-box table { width: 100%; margin: 8px 0 0; }
   th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align:left; vertical-align: top; }
   th { color: var(--mut); font-weight:500; font-size:12px; position: sticky; top:0; background: var(--bg); cursor:pointer; }
+  .port-box th { background: var(--card); position:static; }
   td.num { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
   tr.row:hover { background:#0f1522; cursor:pointer; }
   .k { font-weight:600; font-size:11px; padding:2px 7px; border-radius:6px; color:#0b0f17; }
@@ -47,11 +55,13 @@
   <span class="pill" id="status">loading…</span>
   <span class="pill" id="ts"></span>
   <div class="spacer"></div>
+  <button class="pill btn" id="btnPort">📊 Quant Portfolio</button>
   <button class="pill btn" id="btnEn">EN</button>
   <button class="pill btn" id="btnTh">ไทย</button>
   <a class="pill btn" href="https://github.com/83mhpll/polymarket-quant-scanner" target="_blank">GitHub Docs ↗</a>
 </header>
 <div class="stats" id="stats"></div>
+<div class="port-box show" id="portBox"></div>
 <div class="filters" id="filters">
   <button data-k="ALL" class="on" data-en="All" data-th="ทั้งหมด">All</button>
   <button data-k="ARB" data-en="ARB (Locked)" data-th="ARB (ล็อกกำไร)">ARB (Locked)</button>
@@ -83,18 +93,24 @@ const fmt = (v, d=2) => v == null ? "–" : Number(v).toLocaleString(undefined, 
 const pct = v => v == null ? "–" : (Math.abs(v) > 50 ? ">5000%" : (v*100).toFixed(2) + "%");
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+$("#btnPort").onclick = () => $("#portBox").classList.toggle("show");
+
 const I18N = {
   en: {
     scanning: "🔄 scanning…", idle: "✅ idle", offline: "offline",
     lastScan: (t, d, iv) => `last scan ${t} · ${d}s` + (iv ? ` · every ${iv}s` : ""),
-    stats: ["Markets scanned", "Order books", "Opportunities", "Locked arbs", "Arb profit (sum)", "MM reward est."],
+    stats: ["Markets scanned", "Order books", "Opportunities", "Locked arbs", "Optimal Portfolio Profit", "Portfolio Sharpe / VaR95"],
     execHint: id => `<code>python3 -m polyscan execute ${id}</code> (dry-run) · add <code>--live</code> for live execution`,
+    portTitle: "🧠 AI Quant Portfolio Optimizer (Fractional Kelly + Event Correlation Caps)",
+    portCols: ["Kind", "Strategy", "Market / Sizing Rationale", "Alloc $", "Kelly %", "Exp. Profit $", "ROI"],
   },
   th: {
     scanning: "🔄 กำลังสแกน…", idle: "✅ พร้อมใช้งาน", offline: "ออฟไลน์",
     lastScan: (t, d, iv) => `สแกนล่าสุด ${t} · ${d} วินาที` + (iv ? ` · ทุก ${iv} วินาที` : ""),
-    stats: ["ตลาดที่สแกน", "สมุดคำสั่ง (Books)", "โอกาสทั้งหมด", "อาร์บิทราจล็อกกำไร", "กำไร Arb รวม", "รางวัล MM คาดการณ์"],
+    stats: ["ตลาดที่สแกน", "สมุดคำสั่ง (Books)", "โอกาสทั้งหมด", "อาร์บิทราจล็อกกำไร", "กำไรพอร์ตเหมาะสมที่สุด", "Sharpe / VaR95 ของพอร์ต"],
     execHint: id => `<code>python3 -m polyscan execute ${id}</code> (dry-run) · เพิ่ม <code>--live</code> เพื่อส่งคำสั่งจริง`,
+    portTitle: "🧠 พอร์ตโฟลิโออัจฉริยะ (Fractional Kelly + จำกัดความเสี่ยงรายอีเวนต์)",
+    portCols: ["ประเภท", "กลยุทธ์", "ตลาด / เหตุผลการคำนวณขนาดไม้", "จัดสรร $", "Kelly %", "กำไรคาดการณ์ $", "ROI"],
   }
 };
 
@@ -139,19 +155,57 @@ async function load() {
   $("#status").textContent = I18N[lang].offline;
 }
 
+function renderPortfolio() {
+  const p = data.portfolio;
+  if (!p || !p.allocations || !p.allocations.length) { $("#portBox").innerHTML = ""; return; }
+  const t = I18N[lang];
+  const mtm = data.paper_mtm || {};
+  const mtmStr = mtm.n_positions ? ` · Paper MTM PnL: <b>$${fmt(mtm.unrealized_pnl_usd)}</b> (${mtm.n_positions} pos)` : "";
+  const rows = p.allocations.slice(0, 12).map(a => {
+    const rat = lang === "en" ? (a.rationale_en || a.rationale_th) : (a.rationale_th || a.rationale_en);
+    return `<tr>
+      <td><span class="k ${esc(a.kind)}">${esc(a.kind)}</span></td>
+      <td class="ev">${esc(a.strategy)}</td>
+      <td><div><b>${esc(a.title)}</b> · <a href="${esc(a.url)}" target="_blank">↗</a></div><div class="ev">${esc(a.event_title)} — ${esc(rat)}</div></td>
+      <td class="num">$${fmt(a.recommended_usd)}</td>
+      <td class="num">${pct(a.kelly_pct)}</td>
+      <td class="num pos">+$${fmt(a.expected_profit_usd)}</td>
+      <td class="num">${pct(a.roi)}</td>
+    </tr>`;
+  }).join("");
+  $("#portBox").innerHTML = `
+    <div class="port-hdr">
+      <h2>${t.portTitle}</h2>
+      <div class="port-metrics">
+        <span>Allocated: <b>$${fmt(p.total_allocated_usd,0)} / $${fmt(p.bankroll_usd,0)} (${pct(p.utilization_pct)})</b></span>
+        <span>Exp. Profit: <b class="pos">+$${fmt(p.expected_profit_usd)} (${pct(p.portfolio_roi)})</b></span>
+        <span>95% VaR: <b>$${fmt(p.var_95_usd)}</b></span>
+        <span>Max Event Stress: <b>$${fmt(p.max_drawdown_stress_usd)}</b></span>
+        <span>Sharpe: <b>${fmt(p.sharpe_proxy)}</b>${mtmStr}</span>
+      </div>
+    </div>
+    <table><thead><tr>
+      <th>${t.portCols[0]}</th><th>${t.portCols[1]}</th><th>${t.portCols[2]}</th>
+      <th class="num">${t.portCols[3]}</th><th class="num">${t.portCols[4]}</th>
+      <th class="num">${t.portCols[5]}</th><th class="num">${t.portCols[6]}</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 function render() {
   const t = I18N[lang];
   $("#status").textContent = data.scanning ? t.scanning : (data.last_error ? "⚠️ " + data.last_error : t.idle);
   $("#ts").textContent = data.timestamp ? t.lastScan(new Date(data.timestamp).toLocaleTimeString(), data.duration_s, data.interval) : "";
   const ops = data.opportunities || [];
   const arb = ops.filter(o => o.kind === "ARB");
+  const p = data.portfolio || {};
   const stats = [
     [t.stats[0], fmt(data.n_markets, 0)], [t.stats[1], fmt(data.n_books, 0)],
     [t.stats[2], fmt(ops.length, 0)], [t.stats[3], fmt(arb.length, 0)],
-    [t.stats[4], "$" + fmt(arb.reduce((a, o) => a + o.exp_profit, 0))],
-    [t.stats[5], "$" + fmt(ops.filter(o => o.kind === "MM").reduce((a, o) => a + (o.metrics.daily_reward||0), 0)) + "/d"],
+    [t.stats[4], "$" + fmt(p.expected_profit_usd ?? arb.reduce((a, o) => a + o.exp_profit, 0))],
+    [t.stats[5], `${fmt(p.sharpe_proxy ?? 0)} / $${fmt(p.var_95_usd ?? 0)}`],
   ];
   $("#stats").innerHTML = stats.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+  renderPortfolio();
   const q = $("#q").value.toLowerCase();
   let rows = ops.filter(o => (kind === "ALL" || o.kind === kind) &&
     (!q || (o.event_title + " " + o.title).toLowerCase().includes(q)));

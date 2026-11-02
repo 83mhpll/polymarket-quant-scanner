@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 from polyscan.execution_math import basket_walk, taker_fee, walk_single
 from polyscan.models import Level, Market, OrderBook, Outcome
-from polyscan.strategies import binary_arb, ladder_arb, negrisk_arb
+from polyscan.portfolio import build_optimal_portfolio, kelly_fraction
+from polyscan.strategies import binary_arb, cross_market_arb, ladder_arb, negrisk_arb
 from polyscan.config import Config
 from polyscan.strategies.negrisk_arb import EventGroup
 
@@ -120,6 +121,29 @@ class TestStrategies(unittest.TestCase):
         g = EventGroup("e1", "E", "u", ms, complete=True, augmented=True, has_other=False)
         opps = negrisk_arb.scan([g], books, self.cfg)
         self.assertEqual(len(opps), 0)
+
+    def test_cross_market_temporal_arb(self):
+        m_early = mk("Will OpenAI release GPT-6 by March 31, 2027?", "y1", "n1", event="evA", days=60)
+        m_late = mk("Will OpenAI release GPT-6 by December 31, 2027?", "y2", "n2", event="evB", days=330)
+        books = {
+            "y1": ob("y1", asks=[(0.55, 100)], bids=[(0.53, 100)]),
+            "n1": ob("n1", asks=[(0.45, 100)], bids=[(0.43, 100)]),
+            "y2": ob("y2", asks=[(0.48, 100)], bids=[(0.46, 100)]),
+            "n2": ob("n2", asks=[(0.52, 100)], bids=[(0.50, 100)]),
+        }
+        opps = cross_market_arb.scan([m_early, m_late], books, self.cfg)
+        self.assertEqual(len(opps), 1)
+        self.assertAlmostEqual(opps[0].exp_profit, 7.0)
+
+    def test_portfolio_optimizer_and_kelly(self):
+        m = mk("Q?", "y", "n")
+        books = {"y": ob("y", asks=[(0.45, 500)]), "n": ob("n", asks=[(0.50, 500)])}
+        opps = binary_arb.scan([m], books, self.cfg)
+        kf = kelly_fraction(opps[0], bankroll=5000.0, max_cap_per_trade=1000.0)
+        self.assertGreater(kf["recommended_usd"], 0)
+        port = build_optimal_portfolio(opps, Config(bankroll=5000.0, max_capital_per_trade=1000.0))
+        self.assertEqual(len(port["allocations"]), 1)
+        self.assertGreater(port["expected_profit_usd"], 0)
 
 
 if __name__ == "__main__":

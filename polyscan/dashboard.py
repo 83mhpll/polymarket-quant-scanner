@@ -39,6 +39,7 @@ async def scan_loop(app: web.Application) -> None:
                 n_negrisk_events=d.get("n_negrisk_events", 0), n_requests=d.get("n_requests", 0),
                 opportunities=[Opportunity.from_dict(o) for o in d.get("opportunities", [])],
                 by_strategy=d.get("by_strategy", {}), errors=d.get("errors", []),
+                portfolio=d.get("portfolio", {}), paper_mtm=d.get("paper_mtm", {}),
             )
         except Exception:
             pass

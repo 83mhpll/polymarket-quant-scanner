@@ -17,7 +17,7 @@ from pathlib import Path
 
 from .alerts import send_alerts
 from .config import Config
-from .report import print_detail, print_result, save_result
+from .report import print_detail, print_portfolio, print_result, save_result
 from .scanner import run_scan
 from .strategies import ALL
 from .strategies.base import Opportunity
@@ -49,6 +49,7 @@ def main(argv: list[str] | None = None) -> None:
     d = sub.add_parser("dashboard"); d.add_argument("--port", type=int, default=8080); d.add_argument("--host", default="127.0.0.1")
     d.add_argument("--interval", type=int)
     sh = sub.add_parser("show"); sh.add_argument("id")
+    pf = sub.add_parser("portfolio", help="show optimal Kelly portfolio & paper-trading PnL")
     ex = sub.add_parser("execute"); ex.add_argument("id"); ex.add_argument("--live", action="store_true")
     ex.add_argument("--yes", action="store_true", help="skip confirmation prompt")
     a = ap.parse_args(argv)
@@ -85,6 +86,12 @@ def main(argv: list[str] | None = None) -> None:
         serve(cfg, a.host, a.port, strategies)
     elif a.cmd == "show":
         print_detail(_load_opp(cfg, a.id))
+    elif a.cmd == "portfolio":
+        p = Path(cfg.output_dir) / "latest.json"
+        if not p.exists():
+            sys.exit("ยังไม่มีผลสแกน — รัน `python3 -m polyscan scan` ก่อน")
+        d = json.loads(p.read_text())
+        print_portfolio(d.get("portfolio", {}), d.get("paper_mtm", {}))
     elif a.cmd == "execute":
         from .executor import Executor, revalidate
         opp = _load_opp(cfg, a.id)

@@ -107,6 +107,13 @@ This guarantees that **every single share inside the recommended order size is m
 - Evaluates multi-horizon $z$-scores ($3\text{h}$ and $6\text{h}$) alongside near-touch order book imbalance:
   $$\text{Imb}(\delta) = \frac{V_{\text{bid}}(\delta) - V_{\text{ask}}(\delta)}{V_{\text{bid}}(\delta) + V_{\text{ask}}(\delta)} \in [-1, 1]$$
 
+#### Strategy 7: Cross-Event & Structural Inclusion Arbitrage (`cross_market_arb`)
+- Normalizes propositions across **distinct Polymarket events** by stripping deadlines, threshold numbers, and punctuation into canonical stem signatures.
+- Detects three classes of structural arbitrage:
+  1. **Cross-Event Temporal Monotonicity**: Event $e_1$ ("Proposition $X$ by $T_1$") vs Event $e_2$ ("Proposition $X$ by $T_2$") with $T_1 < T_2 \implies \mathbb{P}(X_{T_1}) \le \mathbb{P}(X_{T_2})$.
+  2. **Cross-Event Duplicate / Mirror Markets**: Identical propositions listed under different event containers where $\text{Ask}_{\text{YES}}(A) + \text{Ask}_{\text{NO}}(B) + \text{Fees} < 1.00$.
+  3. **Range vs Cumulative Threshold Inclusion**: Range contract $A = \{X \in [L, U]\}$ inside cumulative threshold contract $B = \{X \ge L\}$ or $\{X \le U\}$, enforcing $A \subseteq B \implies \mathbb{P}(A) \le \mathbb{P}(B)$ in both Pure Taker and Hybrid Maker-Taker modes.
+
 ---
 
 ### 5. Unified Capital-Time-Efficiency Ranking Score
@@ -116,6 +123,23 @@ Every opportunity is ranked by a unified risk- and duration-adjusted score:
 $$\text{Score} = \frac{w_{\text{kind}} \cdot \text{Confidence} \cdot \mathbb{E}[\text{Profit}_{\text{USD}}]}{\sqrt{1 + T_{\text{days}}}}$$
 
 where $w_{\text{ARB}} = 1.0 > w_{\text{ARB*}} = 0.8 > w_{\text{MM}} = 0.5 > w_{\text{YIELD}} = 0.3 > w_{\text{SIGNAL}} = 0.2$.
+
+---
+
+### 6. AI Quant Portfolio Optimizer & Risk Engine (`polyscan/portfolio.py`)
+
+To move beyond isolated trade signals into institutional portfolio construction, `polyscan/portfolio.py` implements:
+
+1. **Strategy-Aware Fractional Kelly Sizing (`kelly_fraction`)**:
+   - **Arbitrage (`ARB` / `ARB*`)**: Half-Kelly ($\lambda = 0.50$) against a $3\%$ leg-execution slippage/unwind risk buffer, capped at $15\%$ of bankroll per trade.
+   - **Market Making (`MM`)**: Quarter-Kelly Sharpe-proxy sizing against estimated weekly inventory variance.
+   - **Endgame Carry (`YIELD`)**: Quarter-Kelly ($\lambda = 0.25$) scaled by a time-velocity factor $\min(1.5, \sqrt{7/T_{\text{days}}})$ against tail/UMA dispute loss.
+   - **Statistical Signals (`SIGNAL`)**: Fixed $1\%$ bankroll maximum stop-loss risk budget scaled by signal confidence.
+2. **Correlation-Constrained Capital Allocator (`build_optimal_portfolio`)**:
+   - Enforces strategy bucket caps ($55\%$ `ARB`, $35\%$ `MM`, $25\%$ `YIELD`, $15\%$ `SIGNAL`), a strict **$15\%$ single-event concentration cap** (`max_event_frac = 0.15`), and a **$15\%$ cash reserve**.
+   - Outputs portfolio-level **95% Value-at-Risk ($\text{VaR}_{95}$)**, **Worst-Event Stress Drawdown**, and **Portfolio Sharpe Proxy**.
+3. **Persistent Paper-Trading Mark-to-Market Ledger (`PaperLedger`)**:
+   - Tracks simulated positions in `output/paper_portfolio.json` and marks every leg to live CLOB liquidation prices (`best_bid` for long tokens, `best_ask` for short/quoted inventory) on every scan cycle.
 
 ---
 
@@ -141,13 +165,25 @@ where $w_{\text{ARB}} = 1.0 > w_{\text{ARB*}} = 0.8 > w_{\text{MM}} = 0.5 > w_{\
 
 ---
 
-### 3. สรุป 6 กลยุทธ์หลักและการป้องกันความเสี่ยง
+### 3. สรุป 7 กลยุทธ์หลักและการป้องกันความเสี่ยง
 
 | กลยุทธ์ | รหัสประเภท | สมการทำกำไรหลัก | การควบคุมความเสี่ยงในโค้ด |
 | :--- | :---: | :--- | :--- |
 | **`binary_arb`** | `ARB` / `ARB*` | $\text{Ask}_{\text{YES}} + \text{Ask}_{\text{NO}} + \text{Fee} < 1$ | ใช้คำสั่ง FOK ป้องกันการติดขาเดียว (Leg Risk) |
 | **`negrisk_arb`** | `ARB` / `ARB*` | $\sum_{i=1}^N \text{Ask}_{\text{NO}, i} + \text{Fee} < N - 1$ | ตรวจ `complete`, บล็อกตลาด `negRiskAugmented` ที่ไม่มี `Other`, รองรับ Hybrid Maker-Taker |
 | **`ladder_arb`** | `ARB` | $A \implies B \;\text{แต่}\; P(A) > P(B)$ | ซื้อ `YES(B) + NO(A)` การันตีขั้นต่ำ `$1` และลุ้นรับ `$2` หากผลออกตรงกลาง |
+| **`cross_market_arb`** | `ARB` | $A_{e_1} \implies B_{e_2} \;\text{ข้ามอีเวนต์ / ช่วงราคา}$ | จับคู่ความหมายข้ามอีเวนต์ (Temporal / Mirror / Range vs Threshold) ทั้งโหมด Taker และ Hybrid |
 | **`rewards_mm`** | `MM` | $S(v,s) = ((v-s)/v)^2 \cdot \text{Size}$ | คำนวณ Size-Cut Midpoint, กรองตลาดร้าง (`q_others`), หักต้นทุน Adverse Selection |
 | **`endgame_yield`** | `YIELD` | $0.90 \le \text{Ask} \le 0.995$, ใกล้จบ | จำกัดงบไม่เกิน 10% ของพอร์ต, เช็คประวัติ UMA Dispute, จำกัดสูงสุด 2 ตลาดต่ออีเวนต์ |
 | **`stat_signal`** | `SIGNAL` | $z = \Delta\text{logit}(p) / (\hat{\sigma}_{\text{MAD}}\sqrt{\Delta t})$ | กำหนดจุด Take-Profit / Stop-Loss และจำกัดความเสี่ยงขาดทุนไม่เกิน 1% ของพอร์ตต่อไม้ |
+
+---
+
+### 4. ระบบจัดสรรพอร์ตอัจฉริยะและบริหารความเสี่ยง (`polyscan/portfolio.py`)
+
+1. **การคำนวณขนาดไม้ด้วย Fractional Kelly Criterion (`kelly_fraction`)**:
+   - ปรับสูตร Kelly แยกตามธรรมชาติของแต่ละกลยุทธ์: Half-Kelly สำหรับ `ARB`, Sharpe-Proxy สำหรับ `MM`, Quarter-Kelly ปรับตามความเร็วรอบเวลาสำหรับ `YIELD`, และคุมงบ Stop-Loss ไม่เกิน 1% ของพอร์ตสำหรับ `SIGNAL`
+2. **การจำกัดความเสี่ยงร่วมและเพดานรายอีเวนต์ (`build_optimal_portfolio`)**:
+   - จำกัดงบต่ออีเวนต์ไม่เกิน **15% ของพอร์ตรวม** เพื่อป้องกันเหตุการณ์ข่าวพลิกล็อกในอีเวนต์เดียวกระทบพอร์ตทั้งหมด พร้อมกันเงินสดสำรอง 15% และคำนวณค่า **95% Value-at-Risk ($\text{VaR}_{95}$)** และ **Portfolio Sharpe Proxy**
+3. **สมุดบันทึกพอร์ตจำลองแบบ Mark-to-Market (`PaperLedger`)**:
+   - บันทึกรายการพอร์ตจำลองลง `output/paper_portfolio.json` และคำนวณมูลค่าพอร์ตตามราคาเสนอซื้อ/ขายจริงใน Order Book สดทุกครั้งที่รันสแกน

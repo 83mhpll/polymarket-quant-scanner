@@ -165,3 +165,130 @@ async def run_scan(cfg: Config, strategies: list[str] | None = None) -> ScanResu
         n_requests=n_req, opportunities=ranked, by_strategy=by_strategy, errors=errors,
         portfolio=portfolio, paper_mtm=paper_mtm,
     )
+
+
+class RealtimeScanner:
+    """High-frequency incremental scanner: caches Gamma metadata & refreshes live CLOB books every few seconds."""
+
+    def __init__(self, cfg: Config, strategies: list[str] | None = None, universe_ttl_s: float = 180.0):
+        self.cfg = cfg
+        self.enabled = set(strategies or ALL)
+        self.universe_ttl_s = universe_ttl_s
+        self.markets_all: list[Market] = []
+        self.groups: list[EventGroup] = []
+        self.books: dict[str, OrderBook] = {}
+        self.last_universe_ts: float = 0.0
+        self.hot_tokens: set[str] = set()
+        self.cached_signals: list[Opportunity] = []
+        self.tick_count: int = 0
+
+    def _select_hot_tokens(self, ledger: PaperLedger) -> list[str]:
+        tokens: set[str] = set(self.hot_tokens)
+        # Always include tokens from open paper positions
+        st = ledger.load()
+        for pos in st.get("positions", {}).values():
+            for l in pos.get("legs", []):
+                if l.get("token_id"):
+                    tokens.add(l["token_id"])
+        # Include top negRisk groups & high-volume / reward markets
+        for g in self.groups[:45]:
+            for m in g.legs:
+                for o in m.outcomes:
+                    tokens.add(o.token_id)
+        ranked_m = sorted(
+            self.markets_all,
+            key=lambda m: (m.rewards_daily_usd * 50.0 + m.volume_24h * 0.001 + (500.0 if m.neg_risk else 0.0)),
+            reverse=True,
+        )
+        for m in ranked_m[:220]:
+            for o in m.outcomes:
+                tokens.add(o.token_id)
+        return list(tokens)[:650]
+
+    async def tick(self, force_full: bool = False) -> ScanResult:
+        t0 = time.time()
+        self.tick_count += 1
+        need_universe = force_full or not self.markets_all or (t0 - self.last_universe_ts > self.universe_ttl_s)
+        errors: list[str] = []
+        ledger = PaperLedger(self.cfg.output_dir, self.cfg.bankroll)
+
+        async with PolyClient(self.cfg) as client:
+            if need_universe:
+                markets = await client.fetch_markets(self.cfg.max_markets)
+                if "negrisk_arb" in self.enabled:
+                    self.groups, extra = await _build_negrisk_groups(client, markets, self.cfg)
+                    known = {m.id for m in markets}
+                    self.markets_all = markets + [m for m in extra if m.id not in known]
+                else:
+                    self.markets_all = markets
+                    self.groups = []
+                all_tokens = [o.token_id for m in self.markets_all for o in m.outcomes]
+                self.books = await client.fetch_books(all_tokens)
+                self.last_universe_ts = time.time()
+                if "stat_signal" in self.enabled:
+                    try:
+                        self.cached_signals = await stat_signal.scan(self.markets_all, self.books, self.cfg, client)
+                    except Exception as e:
+                        errors.append(f"stat_signal: {e!r}")
+            else:
+                hot = self._select_hot_tokens(ledger)
+                fresh_books = await client.fetch_books(hot)
+                self.books.update(fresh_books)
+
+            opps: list[Opportunity] = []
+            sync_jobs = {
+                "binary_arb": lambda: binary_arb.scan(self.markets_all, self.books, self.cfg),
+                "negrisk_arb": lambda: negrisk_arb.scan(self.groups, self.books, self.cfg),
+                "ladder_arb": lambda: ladder_arb.scan(self.markets_all, self.books, self.cfg),
+                "cross_market_arb": lambda: cross_market_arb.scan(self.markets_all, self.books, self.cfg),
+                "endgame_yield": lambda: endgame.scan(self.markets_all, self.books, self.cfg),
+                "rewards_mm": lambda: rewards_mm.scan(self.markets_all, self.books, self.cfg),
+            }
+            by_strategy: dict[str, int] = {}
+            for name, job in sync_jobs.items():
+                if name not in self.enabled:
+                    continue
+                try:
+                    found = job()
+                    by_strategy[name] = len(found)
+                    opps.extend(found)
+                except Exception as e:
+                    errors.append(f"{name}: {e!r}")
+            if "stat_signal" in self.enabled:
+                by_strategy["stat_signal"] = len(self.cached_signals)
+                opps.extend(self.cached_signals)
+            n_req = client.n_requests
+
+        uniq: dict[str, Opportunity] = {}
+        new_hot: set[str] = set()
+        for o in opps:
+            o.compute_score()
+            kf = kelly_fraction(o, self.cfg.bankroll, self.cfg.max_capital_per_trade)
+            o.metrics["kelly_pct"] = kf["kelly_pct"]
+            o.metrics["kelly_usd"] = kf["recommended_usd"]
+            if o.id not in uniq or uniq[o.id].score < o.score:
+                uniq[o.id] = o
+        ranked = sorted(uniq.values(), key=lambda o: o.score, reverse=True)
+        for o in ranked[:120]:
+            for l in o.legs:
+                if l.token_id:
+                    new_hot.add(l.token_id)
+        self.hot_tokens = new_hot
+
+        ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        portfolio = build_optimal_portfolio(ranked, self.cfg)
+        ledger.record_allocation(portfolio, ranked, ts)
+        paper_mtm = ledger.mark_to_market(self.books)
+        return ScanResult(
+            timestamp=ts,
+            duration_s=round(time.time() - t0, 2),
+            n_markets=len(self.markets_all),
+            n_books=len(self.books),
+            n_negrisk_events=len(self.groups),
+            n_requests=n_req,
+            opportunities=ranked,
+            by_strategy=by_strategy,
+            errors=errors,
+            portfolio=portfolio,
+            paper_mtm=paper_mtm,
+        )

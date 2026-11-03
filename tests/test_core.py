@@ -145,6 +145,27 @@ class TestStrategies(unittest.TestCase):
         self.assertEqual(len(port["allocations"]), 1)
         self.assertGreater(port["expected_profit_usd"], 0)
 
+    def test_paper_ledger_lifecycle(self):
+        import tempfile
+        from polyscan.portfolio import PaperLedger
+        m = mk("Q?", "y", "n")
+        books = {"y": ob("y", asks=[(0.45, 500)], bids=[(0.44, 500)]),
+                 "n": ob("n", asks=[(0.50, 500)], bids=[(0.49, 500)])}
+        opp = binary_arb.scan([m], books, self.cfg)[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = PaperLedger(tmp, initial_cash=5000.0)
+            ok, _, _ = ledger.open_position(opp, amount_usd=475.0)
+            self.assertTrue(ok)
+            mtm = ledger.mark_to_market(books)
+            self.assertEqual(mtm["n_positions"], 1)
+            self.assertGreater(mtm["equity_usd"], 5000.0)
+            ok2, _, _ = ledger.close_position(opp.id, books=books, mode="settle")
+            self.assertTrue(ok2)
+            mtm2 = ledger.mark_to_market(books)
+            self.assertEqual(mtm2["n_positions"], 0)
+            self.assertEqual(mtm2["n_closed"], 1)
+            self.assertGreater(mtm2["realized_pnl_usd"], 20.0)
+
 
 if __name__ == "__main__":
     unittest.main()

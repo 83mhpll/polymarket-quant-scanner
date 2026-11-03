@@ -3,114 +3,742 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Polymarket Quant Opportunity Scanner</title>
+<title>Polymarket Quant Real-Time Scanner, Paper Trading & GitBook</title>
 <style>
-  :root { --bg:#0b0f17; --card:#121826; --line:#1f2937; --txt:#e5e7eb; --mut:#8b95a7;
-          --arb:#22c55e; --arbo:#06b6d4; --yield:#eab308; --mm:#a855f7; --sig:#64748b; }
+  :root {
+    --bg:#080c14; --bg2:#0d1320; --card:#111827; --card2:#182235; --line:#1f2937; --line2:#334155;
+    --txt:#f1f5f9; --mut:#94a3b8; --pri:#3b82f6; --pri2:#2563eb;
+    --arb:#22c55e; --arbo:#06b6d4; --yield:#eab308; --mm:#a855f7; --sig:#64748b; --danger:#ef4444;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+  body { margin:0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
          background: var(--bg); color: var(--txt); }
-  header { padding: 18px 24px; border-bottom: 1px solid var(--line); display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-  h1 { font-size: 18px; margin:0; letter-spacing:.2px; }
+  header { padding: 12px 22px; background: rgba(13,19,32,0.92); backdrop-filter: blur(10px);
+           border-bottom: 1px solid var(--line); display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+           position: sticky; top:0; z-index:100; }
+  .brand { display:flex; align-items:center; gap:9px; font-weight:700; font-size:16px; letter-spacing:.2px; margin-right:6px; }
+  .nav-tabs { display:flex; gap:6px; background: var(--bg); padding:4px; border-radius:10px; border:1px solid var(--line); }
+  .nav-tab { background:transparent; color:var(--mut); border:0; padding:6px 13px; border-radius:7px; cursor:pointer; font-weight:600; font-size:13px; display:flex; align-items:center; gap:6px; }
+  .nav-tab:hover { color:var(--txt); }
+  .nav-tab.active { background: var(--pri2); color:#fff; box-shadow: 0 2px 8px rgba(37,99,235,0.35); }
   .spacer { flex:1; }
-  .pill { padding: 4px 11px; border-radius: 999px; background: var(--card); border:1px solid var(--line); color: var(--mut); font-size:12px; text-decoration:none; }
-  .pill.btn { color: var(--txt); cursor:pointer; }
-  .pill.btn:hover, .pill.btn.active { border-color:#3b82f6; background:#1e293b; }
-  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:12px; padding: 16px 24px; }
-  .stat { background: var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
-  .stat b { display:block; font-size:20px; margin-top:2px; }
-  .stat span { color: var(--mut); font-size:12px; }
-  . filters, .filters { padding: 0 24px 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  .filters button { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 12px; border-radius:8px; cursor:pointer; }
-  .filters button.on { border-color:#3b82f6; background:#1e293b; }
-  .filters input { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 10px; border-radius:8px; min-width:240px; }
-  .port-box { margin: 0 24px 18px; background: var(--card); border: 1px solid #334155; border-radius: 12px; padding: 14px 18px; display:none; }
-  .port-box.show { display:block; }
-  .port-hdr { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
-  .port-hdr h2 { font-size:15px; margin:0; }
-  .port-metrics { display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color: var(--mut); }
-  .port-metrics b { color: var(--txt); }
-  table { width: calc(100% - 48px); margin: 0 24px 40px; border-collapse: collapse; }
-  .port-box table { width: 100%; margin: 8px 0 0; }
-  th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align:left; vertical-align: top; }
-  th { color: var(--mut); font-weight:500; font-size:12px; position: sticky; top:0; background: var(--bg); cursor:pointer; }
-  .port-box th { background: var(--card); position:static; }
-  td.num { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
-  tr.row:hover { background:#0f1522; cursor:pointer; }
-  .k { font-weight:600; font-size:11px; padding:2px 7px; border-radius:6px; color:#0b0f17; }
+  .pill { padding: 4px 10px; border-radius: 999px; background: var(--card); border:1px solid var(--line); color: var(--mut); font-size:12px; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  .pill.btn { color: var(--txt); cursor:pointer; transition: .15s; }
+  .pill.btn:hover, .pill.btn.active { border-color:var(--pri); background:#1e293b; }
+  .pill.live { border-color: rgba(34,197,94,0.45); color:#4ade80; background:rgba(34,197,94,0.1); }
+  .dot { width:7px; height:7px; border-radius:50%; background:#22c55e; display:inline-block; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(1.25)} }
+  .view { display:none; }
+  .view.active { display:block; }
+
+  /* KPI Grid */
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(155px,1fr)); gap:11px; padding: 14px 22px; }
+  .stat { background: var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 14px; }
+  .stat b { display:block; font-size:19px; margin-top:2px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--mut); font-size:11.5px; }
+  .stat small { color: var(--mut); font-size:11px; display:block; margin-top:2px; }
+
+  /* Toolbar & Filters */
+  .filters { padding: 0 22px 12px; display:flex; gap:7px; flex-wrap:wrap; align-items:center; }
+  .filters button, .btn-act { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 11px; border-radius:8px; cursor:pointer; font-size:12.5px; font-weight:500; }
+  .filters button.on, .btn-act.pri { border-color:var(--pri); background:#1e293b; color:#fff; }
+  .btn-act.green { border-color:rgba(34,197,94,0.5); background:rgba(34,197,94,0.13); color:#4ade80; }
+  .btn-act.green:hover { background:rgba(34,197,94,0.24); }
+  .btn-act.red { border-color:rgba(239,68,68,0.45); background:rgba(239,68,68,0.12); color:#f87171; }
+  .filters input { background: var(--card); color: var(--txt); border:1px solid var(--line); padding:6px 11px; border-radius:8px; min-width:230px; }
+
+  /* Tables & Cards */
+  .panel { margin: 0 22px 18px; background: var(--card); border: 1px solid var(--line2); border-radius: 12px; padding: 14px 16px; }
+  .panel-hdr { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+  .panel-hdr h2 { font-size:15px; margin:0; display:flex; align-items:center; gap:8px; }
+  .metrics-bar { display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color: var(--mut); }
+  .metrics-bar b { color: var(--txt); }
+  table { width: calc(100% - 44px); margin: 0 22px 32px; border-collapse: collapse; }
+  .panel table { width: 100%; margin: 6px 0 0; }
+  th, td { padding: 8px 9px; border-bottom: 1px solid var(--line); text-align:left; vertical-align: middle; }
+  th { color: var(--mut); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.3px; position: sticky; top:53px; background: var(--bg); cursor:pointer; z-index:10; }
+  .panel th { background: var(--card); position:static; }
+  td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+  tr.row:hover { background:#131c2e; cursor:pointer; }
+  tr.flash-up { animation: flashG 0.9s ease; }
+  tr.flash-dn { animation: flashR 0.9s ease; }
+  @keyframes flashG { 0%{background:rgba(34,197,94,0.22)} 100%{background:transparent} }
+  @keyframes flashR { 0%{background:rgba(239,68,68,0.22)} 100%{background:transparent} }
+  .k { font-weight:700; font-size:10.5px; padding:2px 6px; border-radius:5px; color:#080c14; display:inline-block; }
   .ARB { background: var(--arb); } .ARB\* { background: var(--arbo); } .YIELD { background: var(--yield); }
-  .MM { background: var(--mm); } .SIGNAL { background: var(--sig); color:#fff; }
+  .MM { background: var(--mm); color:#fff; } .SIGNAL { background: var(--sig); color:#fff; }
   .ev { color: var(--mut); font-size:12px; }
   a { color:#60a5fa; text-decoration:none; }
-  .detail td { background:#0f1522; color: var(--mut); font-size: 13px; }
+  .detail td { background:#0c1322; color: var(--mut); font-size: 12.5px; padding:12px 14px; }
   .detail ul { margin:6px 0; padding-left:18px; }
-  .legs { width:100%; margin:6px 0; }
-  .legs td { padding:3px 8px; border:0; }
-  .pos { color: var(--arb); } .warn { color: #f87171; }
+  .legs { width:100%; margin:4px 0 8px; background:var(--card); border-radius:8px; overflow:hidden; }
+  .legs td, .legs th { padding:5px 9px; border-bottom:1px solid var(--line); font-size:12px; }
+  .pos { color: #4ade80; font-weight:600; } .warn, .neg { color: #f87171; font-weight:600; }
+
+  /* GitBook Layout */
+  .gb-wrap { display:grid; grid-template-columns: 270px 1fr 220px; min-height: calc(100vh - 56px); }
+  @media (max-width: 1100px) { .gb-wrap { grid-template-columns: 240px 1fr; } .gb-toc { display:none; } }
+  @media (max-width: 760px) { .gb-wrap { grid-template-columns: 1fr; } .gb-side { border-right:0; border-bottom:1px solid var(--line); } }
+  .gb-side { background: var(--bg2); border-right:1px solid var(--line); padding:16px 12px; position:sticky; top:56px; height:calc(100vh - 56px); overflow-y:auto; }
+  .gb-search { width:100%; background:var(--card); color:var(--txt); border:1px solid var(--line2); padding:7px 10px; border-radius:8px; margin-bottom:12px; font-size:12.5px; }
+  .gb-sec { font-size:11px; font-weight:700; text-transform:uppercase; color:var(--mut); margin:14px 8px 6px; letter-spacing:.5px; }
+  .gb-item { display:block; width:100%; text-align:left; background:transparent; border:0; color:var(--mut); padding:7px 10px; border-radius:7px; cursor:pointer; font-size:13px; margin-bottom:2px; transition:.12s; }
+  .gb-item:hover { background:var(--card); color:var(--txt); }
+  .gb-item.active { background:rgba(59,130,246,0.16); color:#60a5fa; font-weight:600; border-left:3px solid var(--pri); }
+  .gb-main { padding: 28px 42px 60px; max-width: 900px; margin:0 auto; width:100%; }
+  .gb-main h1 { font-size:26px; margin:0 0 12px; border-bottom:1px solid var(--line); padding-bottom:12px; }
+  .gb-main h2 { font-size:19px; margin:26px 0 10px; color:#93c5fd; scroll-margin-top:75px; }
+  .gb-main h3 { font-size:15.5px; margin:18px 0 8px; color:#e2e8f0; }
+  .gb-main p, .gb-main li { color:#cbd5e1; line-height:1.68; font-size:14.5px; }
+  .gb-main code { background:#1e293b; color:#38bdf8; padding:2px 6px; border-radius:5px; font-size:13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .gb-main pre { background:#0d1320; border:1px solid var(--line2); padding:14px 16px; border-radius:10px; overflow-x:auto; position:relative; }
+  .gb-main pre code { background:transparent; color:#e2e8f0; padding:0; }
+  .gb-main table { width:100%; margin:14px 0 22px; }
+  .gb-main th { position:static; background:var(--card); }
+  .gb-callout { border-left:4px solid var(--pri); background:rgba(59,130,246,0.09); padding:12px 16px; border-radius:0 10px 10px 0; margin:14px 0; }
+  .gb-callout.warn { border-left-color:var(--yield); background:rgba(234,179,8,0.09); }
+  .gb-callout.tip { border-left-color:var(--arb); background:rgba(34,197,94,0.09); }
+  .gb-math { background:var(--card); border:1px solid var(--line2); border-radius:9px; padding:11px 16px; margin:12px 0; font-family: ui-monospace, Menlo, monospace; color:#fde047; overflow-x:auto; }
+  .gb-nav-cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:36px; padding-top:20px; border-top:1px solid var(--line); }
+  .gb-card-btn { background:var(--card); border:1px solid var(--line2); border-radius:10px; padding:12px 16px; cursor:pointer; text-align:left; color:var(--txt); }
+  .gb-card-btn:hover { border-color:var(--pri); }
+  .gb-card-btn small { color:var(--mut); display:block; font-size:11px; }
+  .gb-toc { border-left:1px solid var(--line); padding:20px 14px; position:sticky; top:56px; height:calc(100vh - 56px); overflow-y:auto; font-size:12.5px; }
+  .gb-toc b { display:block; color:var(--mut); text-transform:uppercase; font-size:11px; margin-bottom:8px; }
+  .gb-toc a { display:block; color:var(--mut); padding:4px 0; }
+  .gb-toc a:hover { color:var(--txt); }
+  .toast { position:fixed; bottom:20px; right:22px; background:#1e293b; border:1px solid var(--pri); color:#fff; padding:10px 16px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.5); z-index:999; display:none; font-size:13px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>⚡ Polymarket Quant Opportunity Scanner</h1>
+  <div class="brand">⚡ PolyScan Quant</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-v="scanner" id="tabScanner">📡 Live Scanner</button>
+    <button class="nav-tab" data-v="portfolio" id="tabPortfolio">🧠 AI Portfolio</button>
+    <button class="nav-tab" data-v="paper" id="tabPaper">💹 Paper Trading <span id="paperBadge" style="background:var(--arb);color:#000;border-radius:99px;padding:0 6px;font-size:11px">0</span></button>
+    <button class="nav-tab" data-v="gitbook" id="tabGitbook">📖 GitBook Docs</button>
+  </div>
+  <span class="pill live" id="rtBadge"><span class="dot"></span> <span id="rtText">REALTIME STREAM</span></span>
   <span class="pill" id="status">loading…</span>
   <span class="pill" id="ts"></span>
   <div class="spacer"></div>
-  <button class="pill btn" id="btnPort">📊 Quant Portfolio</button>
+  <button class="pill btn" id="btnScanNow" title="Fetch fresh live CLOB books immediately">⚡ Scan Now</button>
   <button class="pill btn" id="btnEn">EN</button>
   <button class="pill btn" id="btnTh">ไทย</button>
-  <a class="pill btn" href="https://github.com/83mhpll/polymarket-quant-scanner" target="_blank">GitHub Docs ↗</a>
 </header>
-<div class="stats" id="stats"></div>
-<div class="port-box show" id="portBox"></div>
-<div class="filters" id="filters">
-  <button data-k="ALL" class="on" data-en="All" data-th="ทั้งหมด">All</button>
-  <button data-k="ARB" data-en="ARB (Locked)" data-th="ARB (ล็อกกำไร)">ARB (Locked)</button>
-  <button data-k="ARB*" data-en="ARB* (On-Chain)" data-th="ARB* (on-chain)">ARB* (On-Chain)</button>
-  <button data-k="MM" data-en="MM Rewards" data-th="MM Rewards">MM Rewards</button>
-  <button data-k="YIELD" data-en="Endgame Yield" data-th="Endgame Yield">Endgame Yield</button>
-  <button data-k="SIGNAL" data-en="Signals" data-th="Signals">Signals</button>
-  <input id="q" placeholder="Search event / market…" data-en-ph="Search event / market…" data-th-ph="ค้นหา event / market…">
-</div>
-<table>
-  <thead><tr>
-    <th data-s="kind" data-en="Kind" data-th="ประเภท">Kind</th>
-    <th data-s="event_title" data-en="Opportunity" data-th="โอกาส">Opportunity</th>
-    <th data-s="capital" class="num" data-en="Capital $" data-th="ทุน $">Capital $</th>
-    <th data-s="exp_profit" class="num" data-en="Profit $" data-th="กำไร $">Profit $</th>
-    <th data-s="roi" class="num">ROI</th>
-    <th data-s="days" class="num" data-en="Days" data-th="วัน">Days</th>
-    <th data-s="apr" class="num">APR</th>
-    <th data-s="confidence" class="num">Conf</th>
-    <th data-s="score" class="num">Score</th>
-  </tr></thead>
-  <tbody id="rows"></tbody>
-</table>
+
+<!-- VIEW 1: LIVE SCANNER -->
+<section class="view active" id="view-scanner">
+  <div class="stats" id="stats"></div>
+  <div class="filters" id="filters">
+    <button data-k="ALL" class="on" data-en="All" data-th="ทั้งหมด">All</button>
+    <button data-k="ARB" data-en="ARB (Locked)" data-th="ARB (ล็อกกำไร)">ARB (Locked)</button>
+    <button data-k="ARB*" data-en="ARB* (On-Chain)" data-th="ARB* (on-chain)">ARB* (On-Chain)</button>
+    <button data-k="MM" data-en="MM Rewards" data-th="MM Rewards">MM Rewards</button>
+    <button data-k="YIELD" data-en="Endgame Yield" data-th="Endgame Yield">Endgame Yield</button>
+    <button data-k="SIGNAL" data-en="Signals" data-th="Signals">Signals</button>
+    <input id="q" placeholder="Search event / market…" data-en-ph="Search event / market…" data-th-ph="ค้นหา event / market…">
+    <button class="btn-act green" id="btnQuickDeploy">🧠 Auto-Paper Trade Kelly Top Picks</button>
+  </div>
+  <table>
+    <thead><tr>
+      <th data-s="kind" data-en="Kind" data-th="ประเภท">Kind</th>
+      <th data-s="event_title" data-en="Opportunity (Live CLOB)" data-th="โอกาส (เชื่อม CLOB สด)">Opportunity (Live CLOB)</th>
+      <th data-s="capital" class="num" data-en="Capital $" data-th="ทุน $">Capital $</th>
+      <th data-s="exp_profit" class="num" data-en="Profit $" data-th="กำไร $">Profit $</th>
+      <th data-s="roi" class="num">ROI</th>
+      <th data-s="days" class="num" data-en="Days" data-th="วัน">Days</th>
+      <th data-s="apr" class="num">APR</th>
+      <th data-s="confidence" class="num">Conf</th>
+      <th data-s="score" class="num">Score</th>
+      <th class="num" data-en="Paper Trade" data-th="เทรดจำลอง">Paper Trade</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</section>
+
+<!-- VIEW 2: AI QUANT PORTFOLIO -->
+<section class="view" id="view-portfolio">
+  <div class="stats" id="portStats"></div>
+  <div class="panel" id="portPanel"></div>
+</section>
+
+<!-- VIEW 3: PAPER TRADING TERMINAL -->
+<section class="view" id="view-paper">
+  <div class="stats" id="paperStats"></div>
+  <div class="filters">
+    <button class="btn-act green" id="btnDeployKelly2">🧠 Deploy Optimal Kelly Portfolio</button>
+    <button class="btn-act pri" id="btnAutoBot">🤖 Auto-Paper Bot: ON</button>
+    <button class="btn-act" id="btnRefreshMtm">🔄 Mark-to-Market Now (Live CLOB)</button>
+    <button class="btn-act red" id="btnResetPaper">🗑️ Reset Account ($10,000)</button>
+  </div>
+  <div class="panel">
+    <div class="panel-hdr">
+      <h2 id="openPosTitle">🟢 Open Paper Positions (Real-Time CLOB Mark-to-Market)</h2>
+      <div class="metrics-bar" id="openPosMeta"></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th data-en="Kind" data-th="ประเภท">Kind</th>
+        <th data-en="Market & Live Legs (Entry → Live CLOB)" data-th="ตลาดและขาคำสั่ง (ราคาเข้า → ราคาตลาดสด)">Market & Live Legs</th>
+        <th class="num" data-en="Cost $" data-th="ต้นทุน $">Cost $</th>
+        <th class="num" data-en="Live Mark $" data-th="มูลค่าสด $">Live Mark $</th>
+        <th class="num" data-en="Locked Payout $" data-th="มูลค่าเมื่อจบ $">Locked Payout $</th>
+        <th class="num" data-en="Unrealized PnL" data-th="กำไร/ขาดทุนยังไม่รับรู้">Unrealized PnL</th>
+        <th class="num" data-en="Actions" data-th="จัดการสถานะ">Actions</th>
+      </tr></thead>
+      <tbody id="paperOpenRows"></tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <div class="panel-hdr">
+      <h2 id="closedPosTitle">📜 Closed & Settled Trade Journal</h2>
+    </div>
+    <table>
+      <thead><tr>
+        <th data-en="Closed Time" data-th="เวลาปิด">Closed Time</th>
+        <th data-en="Kind" data-th="ประเภท">Kind</th>
+        <th data-en="Market" data-th="ตลาด">Market</th>
+        <th data-en="Exit Mode" data-th="รูปแบบการปิด">Exit Mode</th>
+        <th class="num" data-en="Cost $" data-th="ต้นทุน $">Cost $</th>
+        <th class="num" data-en="Proceeds $" data-th="เงินรับสุทธิ $">Proceeds $</th>
+        <th class="num" data-en="Realized PnL" data-th="กำไร/ขาดทุนสุทธิ">Realized PnL</th>
+      </tr></thead>
+      <tbody id="paperClosedRows"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- VIEW 4: BUILT-IN GITBOOK DOCUMENTATION -->
+<section class="view" id="view-gitbook">
+  <div class="gb-wrap">
+    <aside class="gb-side">
+      <input class="gb-search" id="gbSearch" placeholder="🔍 Search GitBook chapters…">
+      <div id="gbNav"></div>
+    </aside>
+    <main class="gb-main" id="gbContent"></main>
+    <aside class="gb-toc">
+      <b data-en="ON THIS PAGE" data-th="สารบัญในหน้านี้">ON THIS PAGE</b>
+      <div id="gbToc"></div>
+    </aside>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
 <script>
-let data = {opportunities: []}, kind = "ALL", sortKey = "score", sortDir = -1, open = new Set();
+let data = {opportunities: [], portfolio: {}, paper_mtm: {}};
+let kind = "ALL", sortKey = "score", sortDir = -1, open = new Set(), activeView = "scanner", activeChapter = 0;
 let lang = localStorage.getItem("polyscan_lang") || "en";
+let isLocalBackend = false, ws = null, wsTicks = 0, liveBooks = {}, flashIds = {};
 const $ = s => document.querySelector(s);
-const fmt = (v, d=2) => v == null ? "–" : Number(v).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
-const pct = v => v == null ? "–" : (Math.abs(v) > 50 ? ">5000%" : (v*100).toFixed(2) + "%");
+const fmt = (v, d=2) => v == null || isNaN(v) ? "–" : Number(v).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
+const pct = v => v == null || isNaN(v) ? "–" : (Math.abs(v) > 50 ? ">5000%" : (v*100).toFixed(2) + "%");
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-$("#btnPort").onclick = () => $("#portBox").classList.toggle("show");
+function notify(msg) {
+  const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(window._tTimer); window._tTimer = setTimeout(() => t.style.display = "none", 3200);
+}
 
+// --- NAVIGATION ---
+document.querySelectorAll(".nav-tab").forEach(btn => btn.onclick = () => {
+  document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  btn.classList.add("active");
+  activeView = btn.dataset.v;
+  $("#view-" + activeView).classList.add("active");
+  render();
+});
+
+// --- LOCAL STORAGE PAPER LEDGER (For Static GitHub Pages & Instant Client Sync) ---
+function getClientPaper() {
+  try {
+    const raw = localStorage.getItem("polyscan_paper_v2");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  // Seed from server's paper_mtm if available
+  const srv = data.paper_mtm || {};
+  const initCash = srv.initial_cash_usd || 10000;
+  const posMap = {};
+  (srv.positions || []).forEach(p => { posMap[p.id] = p; });
+  const spent = Object.values(posMap).reduce((s, p) => s + Number(p.allocated_usd || 0), 0);
+  const st = {
+    initial_cash_usd: initCash,
+    cash_usd: srv.cash_usd != null ? srv.cash_usd : Math.max(0, initCash - spent),
+    realized_pnl_usd: srv.realized_pnl_usd || 0,
+    total_fees_usd: srv.total_fees_usd || 0,
+    auto_trade: srv.auto_trade !== false,
+    positions: posMap,
+    closed_trades: srv.closed_trades || []
+  };
+  localStorage.setItem("polyscan_paper_v2", JSON.stringify(st));
+  return st;
+}
+function saveClientPaper(st) {
+  localStorage.setItem("polyscan_paper_v2", JSON.stringify(st));
+}
+
+function computeClientMtm() {
+  const st = getClientPaper();
+  const posList = Object.values(st.positions || {});
+  let totCost = 0, totMark = 0;
+  const marked = posList.map(p => {
+    const cost = Number(p.allocated_usd || 0);
+    const expProf = Number(p.expected_profit_usd || 0);
+    let legCost = 0, legVal = 0;
+    const legs = (p.legs || []).map(l => {
+      const sh = Number(l.shares || l.size || 0);
+      const ep = Number(l.entry_price || l.avg_price || 0.5);
+      const lb = liveBooks[l.token_id] || {};
+      const bid = lb.bid != null ? lb.bid : Number(l.live_bid ?? ep);
+      const ask = lb.ask != null ? lb.ask : Number(l.live_ask ?? ep);
+      const mid = (bid && ask) ? (bid + ask) / 2 : Number(l.mark_price ?? ep);
+      if ((l.side || "BUY").toUpperCase() === "BUY") {
+        legCost += sh * ep; legVal += sh * mid;
+      } else {
+        legCost += sh * ep; legVal += sh * (2 * ep - mid);
+      }
+      return {...l, entry_price: ep, shares: sh, live_bid: bid, live_ask: ask, mark_price: mid};
+    });
+    let markUsd = cost;
+    if (p.kind === "MM") {
+      const hrs = Math.max(0.5, (Date.now() - new Date(p.opened_at || Date.now()).getTime()) / 3600000);
+      markUsd = cost + Math.min(expProf, expProf * (hrs / 168));
+    } else if (legCost > 0) {
+      markUsd = cost * (legVal / legCost);
+      if (p.kind === "ARB") markUsd = Math.max(markUsd, cost + expProf);
+    }
+    const pnl = markUsd - cost;
+    totCost += cost; totMark += markUsd;
+    return {...p, legs, mark_value_usd: markUsd, locked_payout_usd: cost + expProf, unrealized_pnl_usd: pnl};
+  });
+  const cash = Number(st.cash_usd || 0);
+  const realized = Number(st.realized_pnl_usd || 0);
+  const unrl = totMark - totCost;
+  const eq = cash + totMark;
+  const closed = st.closed_trades || [];
+  const wins = closed.filter(c => Number(c.realized_pnl_usd || 0) > 0).length;
+  return {
+    initial_cash_usd: st.initial_cash_usd || 10000,
+    cash_usd: cash,
+    equity_usd: eq,
+    total_cost_usd: totCost,
+    total_mark_usd: totMark,
+    unrealized_pnl_usd: unrl,
+    realized_pnl_usd: realized,
+    total_pnl_usd: realized + unrl,
+    total_return_pct: (eq - (st.initial_cash_usd || 10000)) / (st.initial_cash_usd || 10000),
+    auto_trade: st.auto_trade !== false,
+    n_positions: marked.length,
+    n_closed: closed.length,
+    win_rate_pct: closed.length ? wins / closed.length : 1.0,
+    positions: marked,
+    closed_trades: closed
+  };
+}
+
+async function paperAction(action, payload={}) {
+  if (isLocalBackend) {
+    try {
+      const r = await fetch("/api/paper", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action, ...payload})
+      });
+      if (r.ok) {
+        const res = await r.json();
+        if (res.paper_mtm) {
+          data.paper_mtm = res.paper_mtm;
+          // Mirror into localStorage
+          const posMap = {};
+          (res.paper_mtm.positions || []).forEach(p => { posMap[p.id] = p; });
+          saveClientPaper({...res.paper_mtm, positions: posMap});
+        }
+        notify(res.message || "Paper trade updated");
+        render();
+        return;
+      }
+    } catch (e) {}
+  }
+  // Client-side execution (works on GitHub Pages & offline)
+  const st = getClientPaper();
+  if (action === "open") {
+    const opp = (data.opportunities || []).find(o => o.id === payload.id) || payload.opportunity;
+    if (!opp) return notify("Opportunity not found");
+    const baseCap = Math.max(Number(opp.capital || 100), 1);
+    const alloc = Math.min(Number(payload.amount_usd || (opp.metrics && opp.metrics.kelly_usd) || baseCap), Number(st.cash_usd || 0));
+    if (alloc < 5) return notify(lang === "th" ? "เงินสดจำลองไม่เพียงพอ (ขั้นต่ำ $5)" : "Insufficient paper cash balance (min $5)");
+    const scale = alloc / baseCap;
+    st.positions[opp.id] = {
+      id: opp.id, opened_at: new Date().toISOString(), kind: opp.kind, strategy: opp.strategy,
+      title: opp.title, event_title: opp.event_title, url: opp.url,
+      allocated_usd: alloc, expected_profit_usd: Number(opp.exp_profit || 0) * scale,
+      legs: (opp.legs || []).map(l => ({
+        token_id: l.token_id, outcome: l.outcome, side: l.side,
+        entry_price: Number(l.avg_price || 0.5), shares: Number(l.size || 0) * scale,
+        live_bid: Number(l.avg_price || 0.5), live_ask: Number(l.avg_price || 0.5), mark_price: Number(l.avg_price || 0.5)
+      }))
+    };
+    st.cash_usd = Math.max(0, Number(st.cash_usd || 0) - alloc);
+    saveClientPaper(st);
+    notify(lang === "th" ? `เปิดสถานะ Paper Trade ${opp.id} ($${fmt(alloc)}) สำเร็จ!` : `Opened Paper Trade ${opp.id} ($${fmt(alloc)})!`);
+  } else if (action === "deploy_kelly") {
+    const allocs = (data.portfolio && data.portfolio.allocations) || [];
+    let added = 0;
+    allocs.forEach(a => {
+      if (st.positions[a.id] || st.cash_usd < 25) return;
+      const opp = (data.opportunities || []).find(o => o.id === a.id);
+      if (!opp) return;
+      const amt = Math.min(Number(a.recommended_usd || 200), st.cash_usd);
+      const scale = amt / Math.max(Number(opp.capital || 100), 1);
+      st.positions[a.id] = {
+        id: a.id, opened_at: new Date().toISOString(), kind: opp.kind, strategy: opp.strategy,
+        title: opp.title, event_title: opp.event_title, url: opp.url,
+        allocated_usd: amt, expected_profit_usd: Number(opp.exp_profit || 0) * scale,
+        legs: (opp.legs || []).map(l => ({
+          token_id: l.token_id, outcome: l.outcome, side: l.side,
+          entry_price: Number(l.avg_price || 0.5), shares: Number(l.size || 0) * scale,
+          live_bid: Number(l.avg_price || 0.5), live_ask: Number(l.avg_price || 0.5), mark_price: Number(l.avg_price || 0.5)
+        }))
+      };
+      st.cash_usd -= amt; added++;
+    });
+    saveClientPaper(st);
+    notify(lang === "th" ? `จัดสรรพอร์ต Kelly อัตโนมัติสำเร็จ (+${added} สถานะ)` : `Deployed Kelly Portfolio (+${added} positions)`);
+  } else if (action === "close") {
+    const mtm = computeClientMtm();
+    const pos = (mtm.positions || []).find(p => p.id === payload.id);
+    if (!pos) return;
+    const cost = Number(pos.allocated_usd || 0);
+    const proceeds = payload.mode === "settle" ? Number(pos.locked_payout_usd || cost) : Number(pos.mark_value_usd || cost);
+    const pnl = proceeds - cost;
+    delete st.positions[payload.id];
+    st.cash_usd = Number(st.cash_usd || 0) + proceeds;
+    st.realized_pnl_usd = Number(st.realized_pnl_usd || 0) + pnl;
+    st.closed_trades = [{
+      id: pos.id, kind: pos.kind, strategy: pos.strategy, title: pos.title, event_title: pos.event_title,
+      closed_at: new Date().toISOString(), exit_type: payload.mode === "settle" ? "SETTLE_MERGE" : "MARKET_CLOSE",
+      cost_usd: cost, proceeds_usd: proceeds, realized_pnl_usd: pnl, roi: pnl / Math.max(cost, 1)
+    }, ...(st.closed_trades || [])];
+    saveClientPaper(st);
+    notify(`${pos.id} Closed (${payload.mode === "settle" ? "Settle" : "Market"}): PnL $${fmt(pnl)}`);
+  } else if (action === "toggle_auto") {
+    st.auto_trade = !st.auto_trade;
+    saveClientPaper(st);
+    notify(`Auto-Paper Trade Bot: ${st.auto_trade ? "ON" : "OFF"}`);
+  } else if (action === "reset") {
+    localStorage.removeItem("polyscan_paper_v2");
+    saveClientPaper({initial_cash_usd:10000, cash_usd:10000, realized_pnl_usd:0, total_fees_usd:0, auto_trade:false, positions:{}, closed_trades:[]});
+    notify(lang === "th" ? "รีเซ็ตพอร์ตจำลองกลับเป็น $10,000 แล้ว" : "Paper Trading account reset to $10,000");
+  }
+  render();
+}
+// --- REAL-TIME POLYMARKET CLOB WEBSOCKET & LIVE BOOK ENGINE ---
+function collectActiveTokens() {
+  const toks = new Set();
+  (data.opportunities || []).slice(0, 65).forEach(o => (o.legs || []).forEach(l => { if (l.token_id) toks.add(l.token_id); }));
+  const mtm = computeClientMtm();
+  (mtm.positions || []).forEach(p => (p.legs || []).forEach(l => { if (l.token_id) toks.add(l.token_id); }));
+  return Array.from(toks);
+}
+
+function applyTokenPriceUpdate(tokenId, bestBid, bestAsk) {
+  if (!tokenId) return;
+  const prev = liveBooks[tokenId] || {};
+  const bid = bestBid != null ? Number(bestBid) : prev.bid;
+  const ask = bestAsk != null ? Number(bestAsk) : prev.ask;
+  if (bid == null && ask == null) return;
+  liveBooks[tokenId] = {bid, ask, mid: (bid != null && ask != null) ? (bid + ask) / 2 : (bid ?? ask), ts: Date.now()};
+
+  // Dynamically update matching opportunity leg prices & profits in real-time
+  (data.opportunities || []).forEach(o => {
+    let touched = false;
+    (o.legs || []).forEach(l => {
+      if (l.token_id === tokenId) {
+        const oldP = Number(l.avg_price || 0.5);
+        const newP = l.side === "BUY" ? (ask ?? oldP) : (bid ?? oldP);
+        if (Math.abs(newP - oldP) >= 0.0005 && newP > 0.001 && newP < 0.999) {
+          l.avg_price = newP; touched = true;
+          flashIds[o.id] = newP < oldP ? "flash-up" : "flash-dn";
+        }
+      }
+    });
+    if (touched && (o.kind === "ARB" || o.kind === "ARB*") && o.legs.length >= 2 && o.legs.every(x => x.side === "BUY")) {
+      const sh = Number(o.legs[0].size || 100);
+      const sumP = o.legs.reduce((s, x) => s + Number(x.avg_price || 0), 0);
+      const payout = o.strategy === "negrisk_arb" && o.title.includes("NO") ? (o.legs.length - 1) : 1.0;
+      const newCap = Math.max(10, sh * sumP);
+      const newProf = sh * payout - newCap;
+      if (newProf > 0) {
+        o.capital = newCap; o.exp_profit = newProf; o.roi = newProf / newCap;
+      }
+    }
+  });
+}
+
+function connectPolymarketWS() {
+  const assets = collectActiveTokens();
+  if (!assets.length) return;
+  try {
+    if (ws) { try { ws.close(); } catch (e) {} }
+    ws = new WebSocket("wss://ws-subscriptions-clob.polymarket.com/ws/market");
+    ws.onopen = () => {
+      ws.send(JSON.stringify({assets_ids: assets.slice(0, 100), type: "market"}));
+      $("#rtText").textContent = lang === "th" ? `เชื่อมต่อ CLOB สด (${wsTicks} ticks)` : `LIVE CLOB WS (${wsTicks} ticks)`;
+    };
+    ws.onmessage = (ev) => {
+      try {
+        const msgs = JSON.parse(ev.data);
+        const arr = Array.isArray(msgs) ? msgs : [msgs];
+        let changed = false;
+        arr.forEach(m => {
+          const aid = m.asset_id;
+          if (m.event_type === "book" && aid) {
+            const bBid = (m.bids && m.bids.length) ? Math.max(...m.bids.map(x => Number(x.price))) : null;
+            const bAsk = (m.asks && m.asks.length) ? Math.min(...m.asks.map(x => Number(x.price))) : null;
+            applyTokenPriceUpdate(aid, bBid, bAsk); changed = true;
+          } else if (m.event_type === "price_change" && Array.isArray(m.price_changes)) {
+            m.price_changes.forEach(pc => {
+              applyTokenPriceUpdate(pc.asset_id || aid, pc.best_bid, pc.best_ask); changed = true;
+            });
+          }
+        });
+        if (changed) {
+          wsTicks++;
+          $("#rtText").textContent = lang === "th" ? `CLOB สด · ${wsTicks} ticks` : `LIVE CLOB · ${wsTicks} ticks`;
+          if (!window._renderQueued) {
+            window._renderQueued = true;
+            setTimeout(() => { window._renderQueued = false; render(); }, 650);
+          }
+        }
+      } catch (e) {}
+    };
+  } catch (e) {}
+}
+
+// Direct Browser CLOB Orderbook Poll (Fallback & Supplement to WS on GitHub Pages)
+async function pollDirectClobBooks() {
+  const assets = collectActiveTokens().slice(0, 40);
+  if (!assets.length) return;
+  try {
+    const r = await fetch("https://clob.polymarket.com/books", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(assets.map(id => ({token_id: id})))
+    });
+    if (r.ok) {
+      const books = await r.json();
+      if (Array.isArray(books)) {
+        books.forEach(b => {
+          const bBid = (b.bids && b.bids.length) ? Math.max(...b.bids.map(x => Number(x.price))) : null;
+          const bAsk = (b.asks && b.asks.length) ? Math.min(...b.asks.map(x => Number(x.price))) : null;
+          applyTokenPriceUpdate(b.asset_id, bBid, bAsk);
+        });
+        wsTicks++;
+        $("#rtText").textContent = lang === "th" ? `CLOB สด · ${wsTicks} ticks` : `LIVE CLOB · ${wsTicks} ticks`;
+        render();
+      }
+    }
+  } catch (e) {}
+}
+// --- BUILT-IN GITBOOK DOCUMENTATION DATA (EN & TH) ---
+const GITBOOK_CHAPTERS = [
+  {
+    sec_en: "GETTING STARTED", sec_th: "เริ่มต้นใช้งาน",
+    title_en: "⚡ 1. Executive Overview", title_th: "⚡ 1. ภาพรวมระบบและสถาปัตยกรรม",
+    html_en: `
+      <h1>⚡ Polymarket Quant Real-Time Scanner, Portfolio & Paper Trading</h1>
+      <div class="gb-callout tip"><b>Built-in GitBook Documentation:</b> This documentation is integrated directly into the web platform—no external GitHub docs needed. Switch between <b>EN</b> and <b>ไทย</b> anytime in the top header.</div>
+      <h2>1. What is PolyScan Quant?</h2>
+      <p><code>polyscan</code> is an institutional-grade <b>Real-Time Quantitative Market Scanner, Arbitrage Detector, Portfolio Risk Engine, and Paper Trading Desk</b> built on Polymarket's official <b>Gamma API</b> and <b>CLOB Level-2 Orderbook API + WebSocket</b>.</p>
+      <h2>2. Four Core Pillars</h2>
+      <table>
+        <thead><tr><th>Pillar</th><th>Module</th><th>Capability</th></tr></thead>
+        <tbody>
+          <tr><td><b>Real-Time L2 Engine</b></td><td><code>scanner.py</code> + CLOB WS</td><td>Caches Gamma metadata and streams live CLOB Level-2 orderbook deltas every few seconds + sub-second WebSocket ticks.</td></tr>
+          <tr><td><b>7 Quant Strategies</b></td><td><code>polyscan/strategies/</code></td><td><code>binary_arb</code>, <code>negrisk_arb</code>, <code>ladder_arb</code>, <code>cross_market_arb</code>, <code>rewards_mm</code>, <code>endgame_yield</code>, and <code>stat_signal</code>.</td></tr>
+          <tr><td><b>Kelly & VaR95 Portfolio</b></td><td><code>polyscan/portfolio.py</code></td><td>Strategy-aware Fractional Kelly sizing, 15% per-event correlation cap, 95% Value-at-Risk (VaR95), and Sharpe proxy.</td></tr>
+          <tr><td><b>Live Paper Trading Desk</b></td><td><code>PaperLedger</code> + UI</td><td>Simulated multi-leg order execution, Auto-Paper Bot, real-time CLOB Mark-to-Market PnL, Market Close & On-Chain Merge Settlement.</td></tr>
+        </tbody>
+      </table>`,
+    html_th: `
+      <h1>⚡ ระบบสแกนตลาด Polymarket แบบ Real-Time, จัดสรรพอร์ต และ Paper Trading</h1>
+      <div class="gb-callout tip"><b>คู่มือ GitBook ในตัวเว็บ:</b> เอกสารชุดนี้ถูกฝังอยู่ในระบบเว็บโดยตรง ไม่ต้องเปิดดูแยกใน GitHub สามารถสลับภาษา <b>EN / ไทย</b> ได้จากมุมขวาบนทันที</div>
+      <h2>1. ภาพรวมระบบ PolyScan Quant</h2>
+      <p><code>polyscan</code> คือแพลตฟอร์มวิเคราะห์ตลาดเชิงปริมาณระดับสถาบันที่เชื่อมต่อกับ <b>Gamma API</b>, <b>CLOB Level-2 Orderbook API</b> และ <b>Polymarket Real-Time WebSocket</b> โดยตรง เพื่อค้นหาโอกาสทำกำไร คำนวณขนาดไม้ด้วย Kelly Criterion และจำลองการเทรดจริง (Paper Trading) แบบวินาทีต่อวินาที</p>
+      <h2>2. 4 เสาหลักของระบบ</h2>
+      <table>
+        <thead><tr><th>องค์ประกอบ</th><th>โมดูลหลัก</th><th>ความสามารถสำคัญ</th></tr></thead>
+        <tbody>
+          <tr><td><b>Real-Time L2 Engine</b></td><td><code>scanner.py</code> + CLOB WS</td><td>สแกนสมุดคำสั่งซื้อขายสดแบบ Incremental Delta ทุกๆ ไม่กี่วินาที พร้อมรับข้อมูลราคาไหลแบบ Real-Time ผ่าน WebSocket</td></tr>
+          <tr><td><b>7 กลยุทธ์ทำกำไร</b></td><td><code>polyscan/strategies/</code></td><td>ครอบคลุม <code>binary_arb</code>, <code>negrisk_arb</code>, <code>ladder_arb</code>, <code>cross_market_arb</code>, <code>rewards_mm</code>, <code>endgame_yield</code> และ <code>stat_signal</code></td></tr>
+          <tr><td><b>พอร์ตอัจฉริยะ Kelly & VaR95</b></td><td><code>polyscan/portfolio.py</code></td><td>คำนวณขนาดไม้ด้วย Fractional Kelly แยกตามกลยุทธ์ จำกัดเพดานความเสี่ยง 15% ต่ออีเวนต์ และวัดค่า 95% VaR</td></tr>
+          <tr><td><b>ห้องเทรดจำลอง Paper Trading</b></td><td><code>PaperLedger</code> + UI</td><td>กดเปิดสถานะจำลองได้ทันที มีบอทเทรดจำลองอัตโนมัติ (Auto-Bot) คำนวณกำไร/ขาดทุนตามราคา CLOB สด และจำลองการปิดสถานะ/รวมเหรียญ</td></tr>
+        </tbody>
+      </table>`
+  },
+  {
+    sec_en: "GETTING STARTED", sec_th: "เริ่มต้นใช้งาน",
+    title_en: "🚀 2. Real-Time Engine & CLI Guide", title_th: "🚀 2. ระบบสแกน Real-Time และคำสั่ง CLI",
+    html_en: `
+      <h1>🚀 Real-Time Scanning Architecture & CLI Guide</h1>
+      <h2>1. How Real-Time Scanning Works</h2>
+      <p>Traditional scanners re-download thousands of market metadata objects every run (~28s latency). <code>polyscan</code> uses a <b>Two-Tier Real-Time Engine</b>:</p>
+      <ul>
+        <li><b>Tier 1 — Fast Incremental CLOB Delta Loop (~1.8s cycle):</b> Keeps the market & <code>negRisk</code> universe cached in memory and refreshes Level-2 order books (<code>POST /books</code>) for the top 650 hottest & paper-traded tokens every few seconds.</li>
+        <li><b>Tier 2 — Direct Browser WebSocket Stream:</b> Connects directly to <code>wss://ws-subscriptions-clob.polymarket.com/ws/market</code> so price ticks flash live in the table and update Paper Trading Mark-to-Market PnL in real time.</li>
+      </ul>
+      <h2>2. CLI Quick Reference</h2>
+      <pre><code># 1. Start the Real-Time Web Dashboard & Paper Trading Server
+python3 -m polyscan dashboard --host 127.0.0.1 --port 8080 --interval 6
+
+# 2. Run a CLI Scan & Auto-Update Paper Portfolio
+python3 -m polyscan --max-markets 1200 scan --top 30
+
+# 3. Inspect Optimal Kelly Portfolio & Paper MTM in Terminal
+python3 -m polyscan portfolio
+
+# 4. Re-validate live order books & execute an opportunity
+python3 -m polyscan execute &lt;OPPORTUNITY_ID&gt;          # Dry-run
+python3 -m polyscan execute &lt;OPPORTUNITY_ID&gt; --live   # Live CLOB execution</code></pre>`,
+    html_th: `
+      <h1>🚀 สถาปัตยกรรมการสแกนแบบ Real-Time และคู่มือคำสั่ง CLI</h1>
+      <h2>1. กลไกการสแกนตลาดแบบ Real-Time ความเร็วสูง</h2>
+      <p>ระบบของเราแบ่งการทำงานแบบ Real-Time ออกเป็น 2 ชั้น เพื่อให้ทั้งหน้าเว็บ Cloud และเครื่อง Local อัปเดตราคาได้รวดเร็วระดับวินาที:</p>
+      <ul>
+        <li><b>ชั้นที่ 1 — Incremental CLOB Book Delta (~1.8 วินาทีต่อรอบ):</b> แคชโครงสร้างตลาดไว้ในหน่วยความจำ และดึงเฉพาะ Order Book ระดับ 2 (<code>POST /books</code>) ของเหรียญที่มีสภาพคล่องสูงและเหรียญที่ถือในพอร์ต Paper Trading ทุกๆ ไม่กี่วินาที</li>
+        <li><b>ชั้นที่ 2 — Direct Polymarket WebSocket:</b> เชื่อมต่อไปยัง <code>wss://ws-subscriptions-clob.polymarket.com/ws/market</code> โดยตรงจากเบราว์เซอร์ ทำให้เมื่อมีคนเคาะซื้อ/ขายใน Polymarket ราคาและกำไรในตารางจะกระพริบอัปเดตทันที</li>
+      </ul>
+      <h2>2. คำสั่ง CLI ที่ใช้งานบ่อย</h2>
+      <pre><code># 1. เปิดเซิร์ฟเวอร์ Real-Time Web Dashboard และห้องเทรดจำลอง
+python3 -m polyscan dashboard --host 127.0.0.1 --port 8080 --interval 6
+
+# 2. สแกนตลาดผ่าน Terminal และอัปเดตพอร์ตจำลอง
+python3 -m polyscan --max-markets 1200 scan --top 30
+
+# 3. ดูตารางจัดสรรพอร์ต Kelly และผลกำไร Paper Trading
+python3 -m polyscan portfolio
+
+# 4. ตรวจสอบราคาสดซ้ำและส่งคำสั่งซื้อขาย
+python3 -m polyscan execute &lt;OPPORTUNITY_ID&gt;          # โหมดจำลอง Dry-run
+python3 -m polyscan execute &lt;OPPORTUNITY_ID&gt; --live   # ส่งคำสั่งจริงเข้า CLOB</code></pre>`
+  },
+  {
+    sec_en: "QUANTITATIVE CORE", sec_th: "คณิตศาสตร์และโครงสร้างตลาด",
+    title_en: "📐 3. Microstructure, Fees & Basket Walk", title_th: "📐 3. โครงสร้างตลาด สมการค่าธรรมเนียม & Basket Walk",
+    html_en: `
+      <h1>📐 Market Microstructure, Parabolic Fees & Multi-Leg Basket Walk</h1>
+      <h2>1. Conditional Token Invariants</h2>
+      <ul>
+        <li><b>Binary Complement:</b> <code>1 YES + 1 NO = $1.00 USDC</code> (instant on-chain split/merge).</li>
+        <li><b>Negative-Risk NO-Basket:</b> Holding <code>1 NO</code> across all <code>N</code> mutually exclusive outcomes converts immediately on-chain into <code>$(N - 1) USDC</code> cash via <code>NegRiskAdapter.convertPositions</code>.</li>
+      </ul>
+      <h2>2. Parabolic Taker Fee Curve vs 0% Maker Fee</h2>
+      <div class="gb-math">Fee_USDC(C, p, r) = C × r × p × (1 - p)    |    Maker Fee (GTC) = 0%</div>
+      <p>Taker fees peak at <code>p = 0.50</code> where <code>p(1-p) = 0.25</code> and vanish near <code>0.01</code> or <code>0.99</code>. Our <b>Hybrid Maker-Taker Engine</b> rests a 0%-fee GTC Maker order on the leg closest to <code>0.50</code> and sweeps the counter-leg via FOK Taker upon fill.</p>
+      <h2>3. Simultaneous Level-2 Orderbook Walking (<code>basket_walk</code>)</h2>
+      <p>Instead of using top-of-book prices, <code>basket_walk</code> marches down all leg order books simultaneously and stops at the exact <b>marginal breakeven share</b> where the next slice's net edge drops below <code>min_arb_edge</code>.</p>`,
+    html_th: `
+      <h1>📐 โครงสร้างตลาด สมการค่าธรรมเนียม และอัลกอริทึม Basket Walk</h1>
+      <h2>1. สมการความจริงพื้นฐานบนเชน Polygon (CTF Invariants)</h2>
+      <ul>
+        <li><b>ตลาด Binary (YES / NO):</b> หุ้น <code>1 YES + 1 NO = $1.00 USDC</code> เสมอ สามารถแยกรวมเหรียญได้ทันที</li>
+        <li><b>ตลาดหลายตัวเลือก Negative-Risk:</b> การซื้อ <code>NO</code> ครบทั้ง <code>N</code> ตัวเลือก สามารถแลกเป็นเงินสด <code>$(N - 1) USDC</code> ได้ทันทีบนเชนโดยไม่ต้องรอให้ตลาดจบ</li>
+      </ul>
+      <h2>2. สมการค่าธรรมเนียมโค้งพาราโบลา และโหมด Hybrid Maker-Taker</h2>
+      <div class="gb-math">ค่าธรรมเนียม Taker: Fee(C, p, r) = C × r × p × (1 - p)   |   ค่าธรรมเนียม Maker (GTC) = 0%</div>
+      <p>เนื่องจากค่าธรรมเนียม Taker จะแพงที่สุดเมื่อราคาอยู่ใกล้ <code>0.50</code> ระบบของเราจึงมีโหมด <b>Hybrid Maker-Taker</b> โดยวางคำสั่ง <b>GTC Maker (ฟรีค่าธรรมเนียม 0%)</b> ในขาที่ราคาอยู่ใกล้ 0.50 แล้วค่อยยิง FOK Taker ในขาที่เหลือ</p>
+      <h2>3. อัลกอริทึมกวาด Order Book ทุกขาพร้อมกัน (<code>basket_walk</code>)</h2>
+      <p>ระบบคำนวณไล่ระดับราคาในสมุดคำสั่งซื้อขายทุกขาพร้อมกันทีละชั้น หักค่าธรรมเนียมทุกชั้น และหยุดซื้อทันทีเมื่อหุ้นชั้นถัดไปให้กำไรต่ำกว่าจุดคุ้มทุนส่วนเพิ่ม (Marginal Breakeven Stop)</p>`
+  },
+  {
+    sec_en: "STRATEGIES & RISK", sec_th: "กลยุทธ์และการบริหารพอร์ต",
+    title_en: "🎯 4. All 7 Quant Strategies", title_th: "🎯 4. เจาะลึก 7 กลยุทธ์ทำกำไรอัจฉริยะ",
+    html_en: `
+      <h1>🎯 All 7 Quantitative Alpha & Arbitrage Strategies</h1>
+      <table>
+        <thead><tr><th>Strategy</th><th>Kind</th><th>Core Mathematical Edge</th><th>Risk Control</th></tr></thead>
+        <tbody>
+          <tr><td><code>binary_arb</code></td><td>ARB / ARB*</td><td>Ask(YES) + Ask(NO) + Fee &lt; $1.00 or Bid(YES) + Bid(NO) - Fee &gt; $1.00</td><td>Simultaneous FOK execution</td></tr>
+          <tr><td><code>negrisk_arb</code></td><td>ARB / ARB*</td><td>Σ Ask(NO_i) + Fee &lt; N - 1 (instant convert) or Σ Ask(YES_i) &lt; $1.00</td><td>Blocks incomplete <code>negRiskAugmented</code> YES baskets</td></tr>
+          <tr><td><code>ladder_arb</code></td><td>ARB</td><td>Logical implication A ⇒ B where P(A) &gt; P(B); buys YES(B) + NO(A)</td><td>Guaranteed ≥ $1.00 payout; $2.00 if middle bucket hits</td></tr>
+          <tr><td><code>cross_market_arb</code></td><td>ARB</td><td>Cross-event deadline monotonicity, duplicate markets & range [L,U] vs threshold</td><td>Canonical proposition stem matching + Hybrid mode</td></tr>
+          <tr><td><code>rewards_mm</code></td><td>MM</td><td>Quadratic score S(v,s) = ((v-s)/v)² · Size and exact Q_min formula</td><td>Size-cut midpoint, active reward filter, adverse-selection deduction</td></tr>
+          <tr><td><code>endgame_yield</code></td><td>YIELD</td><td>Near-resolution carry (0.90 ≤ Ask ≤ 0.995, ≤14 days)</td><td>UMA dispute penalty + max 2 markets per event cap</td></tr>
+          <tr><td><code>stat_signal</code></td><td>SIGNAL</td><td>Multi-horizon (3h/6h) log-odds Z-score with MAD volatility + L2 book imbalance</td><td>Explicit Take-Profit & Stop-Loss (max 1% bankroll risk)</td></tr>
+        </tbody>
+      </table>`,
+    html_th: `
+      <h1>🎯 เจาะลึก 7 กลยุทธ์ทำกำไรเชิงปริมาณ (Quant Strategies)</h1>
+      <table>
+        <thead><tr><th>กลยุทธ์</th><th>ประเภท</th><th>สมการความได้เปรียบหลัก</th><th>การควบคุมความเสี่ยง</th></tr></thead>
+        <tbody>
+          <tr><td><code>binary_arb</code></td><td>ARB / ARB*</td><td>ซื้อ YES+NO รวมกันต่ำกว่า $1.00 หรือแยกเหรียญขายรวมกันสูงกว่า $1.00</td><td>ใช้คำสั่ง FOK ป้องกันการติดขาเดียว</td></tr>
+          <tr><td><code>negrisk_arb</code></td><td>ARB / ARB*</td><td>เหมา NO ครบทุกตัวเลือกด้วยต้นทุน &lt; $(N-1) เพื่อแลกเงินสดทันที</td><td>บล็อกตลาด <code>negRiskAugmented</code> ที่ไม่มีขา Other</td></tr>
+          <tr><td><code>ladder_arb</code></td><td>ARB</td><td>ตรรกะขั้นบันได A ⇒ B แต่ราคา P(A) &gt; P(B) ซื้อ YES(B) + NO(A)</td><td>การันตีเงินคืนขั้นต่ำ $1.00 และลุ้นรับ $2.00 หากออกตรงกลาง</td></tr>
+          <tr><td><code>cross_market_arb</code></td><td>ARB</td><td>อาร์บิทราจข้ามอีเวนต์ (เส้นตายต่างกัน / ตลาดคู่แฝด / ช่วงราคา vs เกณฑ์สะสม)</td><td>จับคู่โครงสร้างประโยค + รองรับโหมด Hybrid Maker-Taker</td></tr>
+          <tr><td><code>rewards_mm</code></td><td>MM</td><td>สมการกำลังสอง S(v,s) = ((v-s)/v)² · Size และสูตร Q_min แท้ของ Polymarket</td><td>กรองตลาดร้าง หักต้นทุน Adverse Selection จากความผันผวนจริง</td></tr>
+          <tr><td><code>endgame_yield</code></td><td>YIELD</td><td>ดักผลตอบแทนตลาดความน่าจะเป็นสูง (0.90–0.995) ที่ใกล้จบภายใน 14 วัน</td><td>เช็คประวัติข้อพิพาท UMA และจำกัดไม่เกิน 2 ตลาดต่ออีเวนต์</td></tr>
+          <tr><td><code>stat_signal</code></td><td>SIGNAL</td><td>Log-Odds Z-score (3h/6h) ด้วยความผันผวน MAD ผสานกับ Orderbook Imbalance</td><td>กำหนดจุด Take-Profit / Stop-Loss ชัดเจนทุกไม้</td></tr>
+        </tbody>
+      </table>`
+  },
+  {
+    sec_en: "STRATEGIES & RISK", sec_th: "กลยุทธ์และการบริหารพอร์ต",
+    title_en: "🧠 5. Kelly Portfolio & Paper Trading", title_th: "🧠 5. ระบบพอร์ต Kelly และ Paper Trading",
+    html_en: `
+      <h1>🧠 Fractional Kelly Portfolio Optimizer & Paper Trading Guide</h1>
+      <h2>1. Strategy-Aware Fractional Kelly Sizing</h2>
+      <ul>
+        <li><b>ARB / ARB*:</b> Half-Kelly (λ = 0.50) against a 3% leg-unwind slippage buffer (max 15% bankroll).</li>
+        <li><b>MM:</b> Quarter-Kelly Sharpe-proxy sizing against weekly inventory variance (max 8% bankroll).</li>
+        <li><b>YIELD:</b> Time-velocity scaled Quarter-Kelly (max 8% bankroll).</li>
+        <li><b>SIGNAL:</b> Fixed 1% bankroll maximum stop-loss risk budget (max 4% bankroll).</li>
+      </ul>
+      <h2>2. How to Use the Built-in Paper Trading Desk</h2>
+      <ol>
+        <li>Click <b>📈 Trade</b> on any row in the <b>Live Scanner</b> or click <b>🧠 Deploy Optimal Kelly Portfolio</b> in the <b>Paper Trading</b> tab.</li>
+        <li>Watch your open positions mark to market in real-time against live Polymarket CLOB order books.</li>
+        <li>Click <b>Close @ Market</b> to liquidate at live bid/ask prices, or click <b>Settle / Merge</b> on locked arbitrage positions to realize contractual payout into your Closed Trade Journal.</li>
+      </ol>`,
+    html_th: `
+      <h1>🧠 ระบบจัดสรรพอร์ต Fractional Kelly และคู่มือ Paper Trading</h1>
+      <h2>1. การคำนวณขนาดไม้ด้วย Fractional Kelly แยกตามกลยุทธ์</h2>
+      <ul>
+        <li><b>ARB / ARB*:</b> ใช้ Half-Kelly (λ = 0.50) เทียบกับความเสี่ยงกรณีติดขาเดียว 3% (เพดานสูงสุด 15% ของพอร์ต)</li>
+        <li><b>MM:</b> ใช้ Quarter-Kelly เทียบกับความผันผวนรายสัปดาห์ (เพดานสูงสุด 8% ของพอร์ต)</li>
+        <li><b>YIELD:</b> ใช้ Quarter-Kelly ปรับตามความเร็วรอบหมุนเงิน (เพดานสูงสุด 8% ของพอร์ต)</li>
+        <li><b>SIGNAL:</b> คุมความเสี่ยงขาดทุนตามจุด Stop-Loss ไม่เกิน 1% ของพอร์ตต่อไม้</li>
+      </ul>
+      <h2>2. วิธีใช้งานห้องเทรดจำลอง (Paper Trading Terminal)</h2>
+      <ol>
+        <li>คลิกปุ่ม <b>📈 เทรดจำลอง</b> ในตารางสแกนตลาด หรือกดปุ่ม <b>🧠 Deploy Optimal Kelly Portfolio</b> เพื่อเปิดพอร์ตอัตโนมัติตามสัดส่วน Kelly</li>
+        <li>ระบบจะดึงราคาเสนอซื้อ/ขายสดจาก Polymarket CLOB มาคำนวณ <b>Live Mark $</b> และ <b>Unrealized PnL</b> แบบ Real-Time</li>
+        <li>สามารถกด <b>Close @ Market</b> เพื่อขายปิดสถานะที่ราคาตลาดสด หรือกด <b>Settle / Merge</b> สำหรับกลยุทธ์ Arbitrage เพื่อรับรู้กำไรเข้าสู่สมุดบันทึกการเทรด (Closed Trade Journal) ได้ทันที</li>
+      </ol>`
+  }
+];
 const I18N = {
   en: {
-    scanning: "🔄 scanning…", idle: "✅ idle", offline: "offline",
-    lastScan: (t, d, iv) => `last scan ${t} · ${d}s` + (iv ? ` · every ${iv}s` : ""),
-    stats: ["Markets scanned", "Order books", "Opportunities", "Locked arbs", "Optimal Portfolio Profit", "Portfolio Sharpe / VaR95"],
-    execHint: id => `<code>python3 -m polyscan execute ${id}</code> (dry-run) · add <code>--live</code> for live execution`,
-    portTitle: "🧠 AI Quant Portfolio Optimizer (Fractional Kelly + Event Correlation Caps)",
-    portCols: ["Kind", "Strategy", "Market / Sizing Rationale", "Alloc $", "Kelly %", "Exp. Profit $", "ROI"],
+    scanning: "🔄 scanning live books…", idle: "✅ live ready", offline: "⚡ client live mode",
+    lastScan: (t, d, iv) => `updated ${t} · ${d}s` + (iv ? ` · every ${iv}s` : ""),
+    stats: ["Markets Scanned", "Live Order Books", "Opportunities", "Locked Arbs", "Optimal Portfolio Profit", "Paper Equity / MTM PnL"],
+    execHint: id => `<code>python3 -m polyscan execute ${id}</code> (dry-run) · add <code>--live</code> for real CLOB order`,
+    portTitle: "🧠 AI Quant Portfolio Optimizer (Fractional Kelly + 15% Event Correlation Cap)",
+    portCols: ["Kind", "Strategy", "Market & Kelly Sizing Rationale", "Alloc $", "Kelly %", "Exp. Profit $", "ROI", "Paper Trade"],
+    tabs: ["📡 Live Scanner", "🧠 AI Portfolio", "💹 Paper Trading", "📖 GitBook Docs"],
+    tradeBtn: "📈 Trade", closeMkt: "Close @ Market", settleArb: "Settle / Merge"
   },
   th: {
-    scanning: "🔄 กำลังสแกน…", idle: "✅ พร้อมใช้งาน", offline: "ออฟไลน์",
-    lastScan: (t, d, iv) => `สแกนล่าสุด ${t} · ${d} วินาที` + (iv ? ` · ทุก ${iv} วินาที` : ""),
-    stats: ["ตลาดที่สแกน", "สมุดคำสั่ง (Books)", "โอกาสทั้งหมด", "อาร์บิทราจล็อกกำไร", "กำไรพอร์ตเหมาะสมที่สุด", "Sharpe / VaR95 ของพอร์ต"],
-    execHint: id => `<code>python3 -m polyscan execute ${id}</code> (dry-run) · เพิ่ม <code>--live</code> เพื่อส่งคำสั่งจริง`,
-    portTitle: "🧠 พอร์ตโฟลิโออัจฉริยะ (Fractional Kelly + จำกัดความเสี่ยงรายอีเวนต์)",
-    portCols: ["ประเภท", "กลยุทธ์", "ตลาด / เหตุผลการคำนวณขนาดไม้", "จัดสรร $", "Kelly %", "กำไรคาดการณ์ $", "ROI"],
+    scanning: "🔄 กำลังสแกน Orderbook สด…", idle: "✅ พร้อมทำงานสด", offline: "⚡ โหมดเชื่อมต่อ CLOB สด",
+    lastScan: (t, d, iv) => `อัปเดต ${t} · ${d} วิ` + (iv ? ` · ทุก ${iv} วิ` : ""),
+    stats: ["ตลาดที่สแกน", "สมุดคำสั่ง (Books)", "โอกาสทั้งหมด", "อาร์บิทราจล็อกกำไร", "กำไรพอร์ต Kelly", "พอร์ตจำลอง / กำไร MTM"],
+    execHint: id => `<code>python3 -m polyscan execute ${id}</code> (dry-run) · เติม <code>--live</code> เพื่อยิงคำสั่งจริง`,
+    portTitle: "🧠 พอร์ตโฟลิโออัจฉริยะ (Fractional Kelly + จำกัดความเสี่ยง 15% ต่ออีเวนต์)",
+    portCols: ["ประเภท", "กลยุทธ์", "ตลาดและเหตุผลการคำนวณขนาดไม้ Kelly", "จัดสรร $", "Kelly %", "กำไรคาดการณ์ $", "ROI", "เทรดจำลอง"],
+    tabs: ["📡 สแกนตลาดสด", "🧠 พอร์ต AI Kelly", "💹 พอร์ตเทรดจำลอง", "📖 คู่มือ GitBook"],
+    tradeBtn: "📈 เทรดจำลอง", closeMkt: "ปิดที่ราคาตลาด", settleArb: "รวมเหรียญรับกำไร"
   }
 };
 
@@ -126,42 +754,54 @@ function translateNote(n) {
     .replace(/เลยวันสิ้นสุดแล้ว — รอ UMA resolve.*/, "Past end date — awaiting UMA resolution")
     .replace(/⚠️ มีประวัติ dispute ใน UMA/, "⚠️ Active or historical UMA dispute")
     .replace(/⚠️ ราคาเคลื่อน ([^\s]+) ใน 24 ชม\. — ตลาดยังไม่นิ่ง/, "⚠️ Price moved $1 in 24h — market still volatile")
-    .replace(/สัญญาณเชิงสถิติ — มีความเสี่ยงทิศทาง ใช้ stop-loss เสมอ/, "Statistical signal — carries directional risk; always enforce stop-loss")
-    .replace(/ตรรกะ: '([^']+)' ⇒ '([^']+)'.*/, "Logic: '$1' ⇒ '$2' (monotonicity requirement P(strong) ≤ P(weak))")
-    .replace(/วิธีเข้า: วาง GTC Maker Bid ที่ '([^']+)' \(ค่าธรรมเนียม 0%\) เมื่อแมตช์แล้วส่ง FOK Taker ที่ '([^']+)'/, "Execution: post GTC Maker Bid on '$1' (0% fee), then send FOK Taker on '$2' upon fill")
-    .replace(/ประหยัดค่าธรรมเนียมขา Maker ทำให้อาร์บิทราจมีกำไรสุทธิ \+\$([\d.,]+)/, "Saving Maker fee yields net locked profit of +$$$1");
+    .replace(/สัญญาณเชิงสถิติ — มีความเสี่ยงทิศทาง ใช้ stop-loss เสมอ/, "Statistical signal — carries directional risk; always enforce stop-loss");
 }
 
-function setLang(l) {
-  lang = l;
-  localStorage.setItem("polyscan_lang", l);
-  document.documentElement.lang = l;
-  $("#btnEn").classList.toggle("active", l === "en");
-  $("#btnTh").classList.toggle("active", l === "th");
-  document.querySelectorAll("[data-en]").forEach(el => { el.textContent = el.dataset[l]; });
-  $("#q").placeholder = $("#q").dataset[l + "Ph"];
-  render();
-}
-$("#btnEn").onclick = () => setLang("en");
-$("#btnTh").onclick = () => setLang("th");
+function renderGitbook() {
+  const q = ($("#gbSearch") ? $("#gbSearch").value : "").toLowerCase();
+  let navHtml = "", lastSec = "";
+  GITBOOK_CHAPTERS.forEach((ch, idx) => {
+    const title = lang === "th" ? ch.title_th : ch.title_en;
+    const body = lang === "th" ? ch.html_th : ch.html_en;
+    if (q && !(title.toLowerCase().includes(q) || body.toLowerCase().includes(q))) return;
+    const sec = lang === "th" ? ch.sec_th : ch.sec_en;
+    if (sec !== lastSec) { navHtml += `<div class="gb-sec">${esc(sec)}</div>`; lastSec = sec; }
+    navHtml += `<button class="gb-item ${idx === activeChapter ? 'active' : ''}" onclick="selectChapter(${idx})">${esc(title)}</button>`;
+  });
+  $("#gbNav").innerHTML = navHtml;
+  const cur = GITBOOK_CHAPTERS[activeChapter] || GITBOOK_CHAPTERS[0];
+  const prev = activeChapter > 0 ? GITBOOK_CHAPTERS[activeChapter - 1] : null;
+  const next = activeChapter < GITBOOK_CHAPTERS.length - 1 ? GITBOOK_CHAPTERS[activeChapter + 1] : null;
+  const navCards = `<div class="gb-nav-cards">
+    <div>${prev ? `<button class="gb-card-btn" style="width:100%" onclick="selectChapter(${activeChapter-1})"><small>← Previous</small><b>${esc(lang==='th'?prev.title_th:prev.title_en)}</b></button>` : ''}</div>
+    <div>${next ? `<button class="gb-card-btn" style="width:100%;text-align:right" onclick="selectChapter(${activeChapter+1})"><small>Next →</small><b>${esc(lang==='th'?next.title_th:next.title_en)}</b></button>` : ''}</div>
+  </div>`;
+  $("#gbContent").innerHTML = (lang === "th" ? cur.html_th : cur.html_en) + navCards;
 
-async function load() {
-  for (const url of ["/api/result", "./latest.json"]) {
-    try {
-      const r = await fetch(url, {cache: "no-store"});
-      if (r.ok) { data = await r.json(); render(); return; }
-    } catch (e) {}
-  }
-  $("#status").textContent = I18N[lang].offline;
+  // Build Right TOC
+  const headings = Array.from($("#gbContent").querySelectorAll("h2"));
+  $("#gbToc").innerHTML = headings.map((h, i) => {
+    h.id = "gb-h2-" + i;
+    return `<a href="#gb-h2-${i}">${esc(h.textContent)}</a>`;
+  }).join("");
 }
+window.selectChapter = idx => { activeChapter = idx; renderGitbook(); window.scrollTo({top:0, behavior:"smooth"}); };
+if ($("#gbSearch")) $("#gbSearch").oninput = renderGitbook;
 
 function renderPortfolio() {
-  const p = data.portfolio;
-  if (!p || !p.allocations || !p.allocations.length) { $("#portBox").innerHTML = ""; return; }
+  const p = data.portfolio || {};
+  const allocs = p.allocations || [];
   const t = I18N[lang];
-  const mtm = data.paper_mtm || {};
-  const mtmStr = mtm.n_positions ? ` · Paper MTM PnL: <b>$${fmt(mtm.unrealized_pnl_usd)}</b> (${mtm.n_positions} pos)` : "";
-  const rows = p.allocations.slice(0, 12).map(a => {
+  const pStats = [
+    [lang==="th"?"เงินทุนพอร์ต (Bankroll)":"Portfolio Bankroll", "$" + fmt(p.bankroll_usd || 10000, 0)],
+    [lang==="th"?"เงินที่จัดสรร (Allocated)":"Allocated Capital", `$${fmt(p.total_allocated_usd || 0, 0)} (${pct(p.utilization_pct || 0)})`],
+    [lang==="th"?"เงินสดสำรอง (Cash Reserve)":"Cash Reserve", "$" + fmt(p.cash_reserve_usd || 2000, 0)],
+    [lang==="th"?"กำไรคาดหวัง (Exp. Profit)":"Expected Profit", `+$${fmt(p.expected_profit_usd || 0)} (${pct(p.portfolio_roi || 0)})`],
+    [lang==="th"?"ความเสี่ยง 95% VaR":"95% Value-at-Risk", "$" + fmt(p.var_95_usd || 0)],
+    [lang==="th"?"Sharpe Proxy / เพดานอีเวนต์":"Sharpe / Worst Event", `${fmt(p.sharpe_proxy || 0)} / $${fmt(p.max_drawdown_stress_usd || 0)}`]
+  ];
+  $("#portStats").innerHTML = pStats.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+  const rows = allocs.map(a => {
     const rat = lang === "en" ? (a.rationale_en || a.rationale_th) : (a.rationale_th || a.rationale_en);
     return `<tr>
       <td><span class="k ${esc(a.kind)}">${esc(a.kind)}</span></td>
@@ -171,75 +811,188 @@ function renderPortfolio() {
       <td class="num">${pct(a.kelly_pct)}</td>
       <td class="num pos">+$${fmt(a.expected_profit_usd)}</td>
       <td class="num">${pct(a.roi)}</td>
+      <td class="num"><button class="btn-act green" onclick="paperAction('open',{id:'${a.id}',amount_usd:${a.recommended_usd}})">${t.tradeBtn}</button></td>
     </tr>`;
   }).join("");
-  $("#portBox").innerHTML = `
-    <div class="port-hdr">
+  $("#portPanel").innerHTML = `
+    <div class="panel-hdr">
       <h2>${t.portTitle}</h2>
-      <div class="port-metrics">
-        <span>Allocated: <b>$${fmt(p.total_allocated_usd,0)} / $${fmt(p.bankroll_usd,0)} (${pct(p.utilization_pct)})</b></span>
-        <span>Exp. Profit: <b class="pos">+$${fmt(p.expected_profit_usd)} (${pct(p.portfolio_roi)})</b></span>
-        <span>95% VaR: <b>$${fmt(p.var_95_usd)}</b></span>
-        <span>Max Event Stress: <b>$${fmt(p.max_drawdown_stress_usd)}</b></span>
-        <span>Sharpe: <b>${fmt(p.sharpe_proxy)}</b>${mtmStr}</span>
-      </div>
+      <button class="btn-act green" onclick="paperAction('deploy_kelly')">🧠 ${lang==='th'?'เปิดพอร์ตจำลองตามตาราง Kelly ทั้งหมด':'Deploy Entire Kelly Portfolio to Paper Trading'}</button>
     </div>
     <table><thead><tr>
       <th>${t.portCols[0]}</th><th>${t.portCols[1]}</th><th>${t.portCols[2]}</th>
       <th class="num">${t.portCols[3]}</th><th class="num">${t.portCols[4]}</th>
-      <th class="num">${t.portCols[5]}</th><th class="num">${t.portCols[6]}</th>
+      <th class="num">${t.portCols[5]}</th><th class="num">${t.portCols[6]}</th><th class="num">${t.portCols[7]}</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderPaper() {
+  const mtm = computeClientMtm();
+  const t = I18N[lang];
+  $("#paperBadge").textContent = mtm.n_positions || 0;
+  $("#btnAutoBot").textContent = `🤖 Auto-Paper Bot: ${mtm.auto_trade ? "ON" : "OFF"}`;
+  $("#btnAutoBot").className = "btn-act " + (mtm.auto_trade ? "green" : "");
+
+  const cards = [
+    [lang==="th"?"มูลค่าพอร์ตรวม (Total Equity)":"Total Account Equity", `$${fmt(mtm.equity_usd)} (${pct(mtm.total_return_pct)})`],
+    [lang==="th"?"เงินสดคงเหลือ (Available Cash)":"Available Paper Cash", `$${fmt(mtm.cash_usd)}`],
+    [lang==="th"?"ต้นทุนที่ถืออยู่ (Deployed Cost)":"Deployed Capital", `$${fmt(mtm.total_cost_usd)} (${mtm.n_positions} pos)`],
+    [lang==="th"?"มูลค่าตลาดสด (Live CLOB Mark)":"Live CLOB Mark Value", `$${fmt(mtm.total_mark_usd)}`],
+    [lang==="th"?"กำไร/ขาดทุนยังไม่รับรู้ (Unrealized)":"Unrealized MTM PnL", `${mtm.unrealized_pnl_usd>=0?'+':''}$${fmt(mtm.unrealized_pnl_usd)}`],
+    [lang==="th"?"กำไรรับรู้แล้ว / Win Rate":"Realized PnL / Win Rate", `${mtm.realized_pnl_usd>=0?'+':''}$${fmt(mtm.realized_pnl_usd)} (${pct(mtm.win_rate_pct)})`]
+  ];
+  $("#paperStats").innerHTML = cards.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+
+  $("#openPosRows")?.remove();
+  $("#paperOpenRows").innerHTML = (mtm.positions || []).map(p => {
+    const pnlCls = p.unrealized_pnl_usd >= 0 ? "pos" : "neg";
+    const legsStr = (p.legs || []).map(l =>
+      `<span class="pill" style="margin:2px 4px 2px 0">${esc(l.side)} ${fmt(l.shares,1)} ${esc(l.outcome)}: <b>${fmt(l.entry_price,3)} → ${fmt(l.mark_price,3)}</b> (bid ${fmt(l.live_bid,3)}/ask ${fmt(l.live_ask,3)})</span>`
+    ).join("");
+    return `<tr>
+      <td><span class="k ${esc(p.kind)}">${esc(p.kind)}</span><div class="ev">${esc(p.strategy)}</div></td>
+      <td><div><b>${esc(p.title)}</b> · <a href="${esc(p.url)}" target="_blank">↗</a></div><div class="ev">${esc(p.event_title)}</div><div style="margin-top:4px">${legsStr}</div></td>
+      <td class="num">$${fmt(p.allocated_usd)}</td>
+      <td class="num">$${fmt(p.mark_value_usd)}</td>
+      <td class="num">$${fmt(p.locked_payout_usd)}</td>
+      <td class="num ${pnlCls}">${p.unrealized_pnl_usd>=0?'+':''}$${fmt(p.unrealized_pnl_usd)}</td>
+      <td class="num">
+        <button class="btn-act" onclick="paperAction('close',{id:'${p.id}',mode:'market'})">${t.closeMkt}</button>
+        <button class="btn-act green" onclick="paperAction('close',{id:'${p.id}',mode:'settle'})">${t.settleArb}</button>
+      </td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--mut);padding:20px">${lang==='th'?'ยังไม่มีสถานะที่เปิดอยู่ — กด Deploy Optimal Kelly Portfolio ด้านบนเพื่อเริ่มเทรดจำลอง':'No open positions — click Deploy Optimal Kelly Portfolio above to start'}</td></tr>`;
+
+  $("#paperClosedRows").innerHTML = (mtm.closed_trades || []).map(c => {
+    const cls = c.realized_pnl_usd >= 0 ? "pos" : "neg";
+    return `<tr>
+      <td class="ev">${c.closed_at ? new Date(c.closed_at).toLocaleTimeString() : '–'}</td>
+      <td><span class="k ${esc(c.kind)}">${esc(c.kind)}</span></td>
+      <td><b>${esc(c.title)}</b><div class="ev">${esc(c.event_title)}</div></td>
+      <td><span class="pill">${esc(c.exit_type)}</span></td>
+      <td class="num">$${fmt(c.cost_usd)}</td>
+      <td class="num">$${fmt(c.proceeds_usd)}</td>
+      <td class="num ${cls}">${c.realized_pnl_usd>=0?'+':''}$${fmt(c.realized_pnl_usd)} (${pct(c.roi)})</td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--mut);padding:16px">${lang==='th'?'ยังไม่มีประวัติการปิดสถานะ':'No closed trades yet'}</td></tr>`;
 }
 
 function render() {
   const t = I18N[lang];
+  $("#tabScanner").textContent = t.tabs[0];
+  $("#tabPortfolio").textContent = t.tabs[1];
+  $("#tabPaper").innerHTML = `${t.tabs[2]} <span id="paperBadge" style="background:var(--arb);color:#000;border-radius:99px;padding:0 6px;font-size:11px">0</span>`;
+  $("#tabGitbook").textContent = t.tabs[3];
+
   $("#status").textContent = data.scanning ? t.scanning : (data.last_error ? "⚠️ " + data.last_error : t.idle);
   $("#ts").textContent = data.timestamp ? t.lastScan(new Date(data.timestamp).toLocaleTimeString(), data.duration_s, data.interval) : "";
   const ops = data.opportunities || [];
   const arb = ops.filter(o => o.kind === "ARB");
   const p = data.portfolio || {};
+  const mtm = computeClientMtm();
+  $("#paperBadge").textContent = mtm.n_positions || 0;
+
   const stats = [
     [t.stats[0], fmt(data.n_markets, 0)], [t.stats[1], fmt(data.n_books, 0)],
     [t.stats[2], fmt(ops.length, 0)], [t.stats[3], fmt(arb.length, 0)],
-    [t.stats[4], "$" + fmt(p.expected_profit_usd ?? arb.reduce((a, o) => a + o.exp_profit, 0))],
-    [t.stats[5], `${fmt(p.sharpe_proxy ?? 0)} / $${fmt(p.var_95_usd ?? 0)}`],
+    [t.stats[4], "+$" + fmt(p.expected_profit_usd ?? arb.reduce((a, o) => a + o.exp_profit, 0))],
+    [t.stats[5], `$${fmt(mtm.equity_usd, 0)} (${mtm.unrealized_pnl_usd>=0?'+':''}$${fmt(mtm.unrealized_pnl_usd)})`],
   ];
   $("#stats").innerHTML = stats.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
-  renderPortfolio();
+
   const q = $("#q").value.toLowerCase();
   let rows = ops.filter(o => (kind === "ALL" || o.kind === kind) &&
     (!q || (o.event_title + " " + o.title).toLowerCase().includes(q)));
   rows.sort((a, b) => ((a[sortKey] ?? -1e18) > (b[sortKey] ?? -1e18) ? 1 : -1) * sortDir);
-  $("#rows").innerHTML = rows.slice(0, 400).map(o => {
-    const main = `<tr class="row" data-id="${o.id}">
+  $("#rows").innerHTML = rows.slice(0, 300).map(o => {
+    const fl = flashIds[o.id] || "";
+    const kUsd = (o.metrics && o.metrics.kelly_usd) ? o.metrics.kelly_usd : Math.min(250, o.capital);
+    const main = `<tr class="row ${fl}" data-id="${o.id}">
       <td><span class="k ${esc(o.kind)}">${esc(o.kind)}</span><div class="ev">${esc(o.strategy)}</div></td>
-      <td><div>${esc(o.title)}</div><div class="ev">${esc(o.event_title)} · <a href="${esc(o.url)}" target="_blank">open ↗</a> · id ${o.id}</div></td>
-      <td class="num">${fmt(o.capital, 0)}</td><td class="num pos">${fmt(o.exp_profit)}</td>
+      <td><div><b>${esc(o.title)}</b></div><div class="ev">${esc(o.event_title)} · <a href="${esc(o.url)}" target="_blank">open ↗</a> · id ${o.id}</div></td>
+      <td class="num">${fmt(o.capital, 0)}</td><td class="num pos">+${fmt(o.exp_profit)}</td>
       <td class="num">${pct(o.roi)}</td><td class="num">${o.days == null ? "–" : fmt(o.days, 1)}</td>
-      <td class="num">${pct(o.apr)}</td><td class="num">${fmt(o.confidence)}</td><td class="num">${fmt(o.score)}</td></tr>`;
+      <td class="num">${pct(o.apr)}</td><td class="num">${fmt(o.confidence)}</td><td class="num">${fmt(o.score)}</td>
+      <td class="num"><button class="btn-act green" onclick="event.stopPropagation();paperAction('open',{id:'${o.id}',amount_usd:${kUsd}})">${t.tradeBtn} ($${fmt(kUsd,0)})</button></td></tr>`;
     if (!open.has(o.id)) return main;
-    const legs = o.legs.map(l => `<tr><td>${esc(l.side)}</td><td>${fmt(l.size)} sh</td><td>${esc(l.outcome)}</td>
-      <td>avg ${fmt(l.avg_price, 4)}</td><td>limit ${fmt(l.price_limit, 4)}</td></tr>`).join("");
+    const legs = o.legs.map(l => {
+      const lb = liveBooks[l.token_id] || {};
+      const liveStr = lb.mid ? ` · <span class="pos">live bid ${fmt(lb.bid,3)} / ask ${fmt(lb.ask,3)}</span>` : "";
+      return `<tr><td><b>${esc(l.side)}</b> (${esc(l.order_type||'FOK')})</td><td>${fmt(l.size)} sh</td><td>${esc(l.outcome)}</td>
+      <td>avg ${fmt(l.avg_price, 4)}${liveStr}</td><td>limit ${fmt(l.price_limit, 4)}</td></tr>`;
+    }).join("");
     const rawNotes = (lang === "en" && o.notes_en && o.notes_en.length) ? o.notes_en : (o.notes || []);
     const notes = rawNotes.map(n => `<li>${esc(translateNote(n))}</li>`).join("");
-    return main + `<tr class="detail"><td></td><td colspan="8"><table class="legs">${legs}</table><ul>${notes}</ul>
+    return main + `<tr class="detail"><td></td><td colspan="9"><table class="legs">${legs}</table><ul>${notes}</ul>
       ${t.execHint(o.id)}</td></tr>`;
   }).join("");
+
   document.querySelectorAll("tr.row").forEach(tr => tr.onclick = e => {
-    if (e.target.tagName === "A") return;
+    if (e.target.tagName === "A" || e.target.tagName === "BUTTON") return;
     const id = tr.dataset.id; open.has(id) ? open.delete(id) : open.add(id); render();
   });
+
+  renderPortfolio();
+  renderPaper();
+  renderGitbook();
 }
-document.querySelectorAll("#filters button").forEach(b => b.onclick = () => {
-  document.querySelectorAll("#filters button").forEach(x => x.classList.remove("on"));
+
+function setLang(l) {
+  lang = l; localStorage.setItem("polyscan_lang", l); document.documentElement.lang = l;
+  $("#btnEn").classList.toggle("active", l === "en");
+  $("#btnTh").classList.toggle("active", l === "th");
+  document.querySelectorAll("[data-en]").forEach(el => { el.textContent = el.dataset[l]; });
+  $("#q").placeholder = $("#q").dataset[l + "Ph"];
+  render();
+}
+$("#btnEn").onclick = () => setLang("en");
+$("#btnTh").onclick = () => setLang("th");
+$("#btnScanNow").onclick = async () => {
+  $("#status").textContent = I18N[lang].scanning;
+  if (isLocalBackend) {
+    try { const r = await fetch("/api/scan", {method:"POST"}); if (r.ok) { data = await r.json(); render(); } } catch (e) {}
+  }
+  await pollDirectClobBooks();
+  notify(lang === "th" ? "อัปเดต Order Book สดจาก Polymarket CLOB เรียบร้อย!" : "Refreshed live Polymarket CLOB order books!");
+};
+$("#btnQuickDeploy").onclick = () => paperAction("deploy_kelly");
+$("#btnDeployKelly2").onclick = () => paperAction("deploy_kelly");
+$("#btnAutoBot").onclick = () => paperAction("toggle_auto");
+$("#btnRefreshMtm").onclick = async () => { await pollDirectClobBooks(); notify("Mark-to-Market updated from live CLOB!"); };
+$("#btnResetPaper").onclick = () => paperAction("reset");
+
+async function load() {
+  try {
+    const r = await fetch("/api/result", {cache: "no-store"});
+    if (r.ok) {
+      isLocalBackend = true; data = await r.json();
+      if (!ws) connectPolymarketWS();
+      render(); return;
+    }
+  } catch (e) {}
+  try {
+    const r2 = await fetch("./latest.json", {cache: "no-store"});
+    if (r2.ok) {
+      data = await r2.json();
+      if (!ws) { connectPolymarketWS(); pollDirectClobBooks(); }
+      render(); return;
+    }
+  } catch (e) {}
+  $("#status").textContent = I18N[lang].offline;
+}
+
+document.querySelectorAll("#filters button[data-k]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#filters button[data-k]").forEach(x => x.classList.remove("on"));
   b.classList.add("on"); kind = b.dataset.k; render();
 });
-document.querySelectorAll("th").forEach(th => th.onclick = () => {
+document.querySelectorAll("th[data-s]").forEach(th => th.onclick = () => {
   const k = th.dataset.s; if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = -1; } render();
 });
 $("#q").oninput = render;
 setLang(lang);
-load(); setInterval(load, 5000);
+load();
+setInterval(load, 4000);
+setInterval(pollDirectClobBooks, 7000);
 </script>
 </body>
 </html>

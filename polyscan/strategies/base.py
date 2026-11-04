@@ -28,6 +28,11 @@ class Leg:
     size: float          # shares
     neg_risk: bool = False
     tick_size: float = 0.01
+    order_type: str = "FOK"              # FOK (Instant Offer/Bid Taker) | GTC (Resting Maker)
+    best_bid: float | None = None        # Live top-of-book Bid
+    best_ask: float | None = None        # Live top-of-book Offer (Ask)
+    spread: float | None = None          # Live Bid-Ask spread
+    book_depth_usd: float | None = None  # Executable USD depth on Offer/Bid book within limit
 
 
 @dataclass

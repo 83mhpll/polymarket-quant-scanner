@@ -93,6 +93,47 @@ async def _build_negrisk_groups(client: PolyClient, markets: list[Market], cfg: 
     return groups, extra
 
 
+def _enrich_and_rank(opps: list[Opportunity], books: dict[str, OrderBook], cfg: Config) -> list[Opportunity]:
+    """Attach live Offer/Bid order book depth, spread telemetry, execution mode, and Kelly sizing."""
+    uniq: dict[str, Opportunity] = {}
+    for o in opps:
+        has_maker = False
+        spreads: list[float] = []
+        min_depth_usd = float("inf")
+        for l in o.legs:
+            b = books.get(l.token_id)
+            is_maker = ("Maker" in l.outcome) or (o.kind == "MM") or (o.metrics.get("mode") == "hybrid_maker_taker" and l.order_type == "GTC")
+            l.order_type = "GTC" if is_maker else "FOK"
+            if is_maker:
+                has_maker = True
+            if b:
+                l.best_bid = b.best_bid
+                l.best_ask = b.best_ask
+                l.spread = round(b.spread, 4) if b.spread is not None else None
+                if l.spread is not None:
+                    spreads.append(l.spread)
+                if not is_maker and l.side.upper() == "BUY":
+                    lim = max(l.price_limit, b.best_ask or 0.0) + 1e-6
+                    depth = sum(lv.price * lv.size for lv in b.asks if lv.price <= lim)
+                elif not is_maker and l.side.upper() == "SELL":
+                    lim = min(l.price_limit, b.best_bid or 1.0) - 1e-6
+                    depth = sum(lv.price * lv.size for lv in b.bids if lv.price >= lim)
+                else:
+                    depth = sum(lv.price * lv.size for lv in b.bids[:5]) + sum(lv.price * lv.size for lv in b.asks[:5])
+                l.book_depth_usd = round(depth, 2)
+                min_depth_usd = min(min_depth_usd, depth)
+        o.metrics["exec_mode"] = "MM_QUOTE" if o.kind == "MM" else ("HYBRID_MAKER" if has_maker else "OFFER_BOOK")
+        o.metrics["max_spread"] = round(max(spreads), 4) if spreads else 0.0
+        o.metrics["min_offer_depth_usd"] = round(min_depth_usd if min_depth_usd != float("inf") else o.capital, 2)
+        o.compute_score()
+        kf = kelly_fraction(o, cfg.bankroll, cfg.max_capital_per_trade)
+        o.metrics["kelly_pct"] = kf["kelly_pct"]
+        o.metrics["kelly_usd"] = kf["recommended_usd"]
+        if o.id not in uniq or uniq[o.id].score < o.score:
+            uniq[o.id] = o
+    return sorted(uniq.values(), key=lambda o: o.score, reverse=True)
+
+
 async def run_scan(cfg: Config, strategies: list[str] | None = None) -> ScanResult:
     t0 = time.time()
     enabled = set(strategies or ALL)
@@ -143,16 +184,7 @@ async def run_scan(cfg: Config, strategies: list[str] | None = None) -> ScanResu
                 log.error("stat_signal failed:\n%s", traceback.format_exc())
         n_req = client.n_requests
 
-    # de-duplicate (same legs), attach Kelly sizing metrics, and rank
-    uniq: dict[str, Opportunity] = {}
-    for o in opps:
-        o.compute_score()
-        kf = kelly_fraction(o, cfg.bankroll, cfg.max_capital_per_trade)
-        o.metrics["kelly_pct"] = kf["kelly_pct"]
-        o.metrics["kelly_usd"] = kf["recommended_usd"]
-        if o.id not in uniq or uniq[o.id].score < o.score:
-            uniq[o.id] = o
-    ranked = sorted(uniq.values(), key=lambda o: o.score, reverse=True)
+    ranked = _enrich_and_rank(opps, books, cfg)
     ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
     portfolio = build_optimal_portfolio(ranked, cfg)
     ledger = PaperLedger(cfg.output_dir)
@@ -259,16 +291,8 @@ class RealtimeScanner:
                 opps.extend(self.cached_signals)
             n_req = client.n_requests
 
-        uniq: dict[str, Opportunity] = {}
+        ranked = _enrich_and_rank(opps, self.books, self.cfg)
         new_hot: set[str] = set()
-        for o in opps:
-            o.compute_score()
-            kf = kelly_fraction(o, self.cfg.bankroll, self.cfg.max_capital_per_trade)
-            o.metrics["kelly_pct"] = kf["kelly_pct"]
-            o.metrics["kelly_usd"] = kf["recommended_usd"]
-            if o.id not in uniq or uniq[o.id].score < o.score:
-                uniq[o.id] = o
-        ranked = sorted(uniq.values(), key=lambda o: o.score, reverse=True)
         for o in ranked[:120]:
             for l in o.legs:
                 if l.token_id:

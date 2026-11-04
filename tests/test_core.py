@@ -90,6 +90,12 @@ class TestStrategies(unittest.TestCase):
         self.assertEqual(t1[0], t2[0])
         self.assertEqual(t1[2], -1)  # later date harder for persistence
 
+        # Explicit year in groupItemTitle must override any typo in m.end_date
+        nov26 = mk("Next government formed by November 30, 2026?", "yn", "nn", gtitle="November 30, 2026", days=200)
+        feb27 = mk("Next government formed by February 28, 2027?", "yf", "nf", gtitle="February 28, 2027", days=50)  # broken end_date!
+        cn, cf = ladder_arb.classify(nov26), ladder_arb.classify(feb27)
+        self.assertLess(cn[1], cf[1])  # Nov 30, 2026 must sort strictly before Feb 28, 2027
+
     def test_spread_ladder(self):
         s1 = mk("Spread: Browns (-1.5)", "a", "b", outcomes=("Browns", "Steelers"))
         s2 = mk("Spread: Browns (-2.5)", "c", "d", outcomes=("Browns", "Steelers"))

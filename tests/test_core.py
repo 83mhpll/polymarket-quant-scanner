@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from polyscan.execution_math import basket_walk, taker_fee, walk_single
 from polyscan.models import Level, Market, OrderBook, Outcome
 from polyscan.portfolio import build_optimal_portfolio, kelly_fraction
-from polyscan.strategies import binary_arb, cross_market_arb, ladder_arb, negrisk_arb
+from polyscan.strategies import binary_arb, cross_market_arb, ladder_arb, negrisk_arb, rewards_mm
 from polyscan.config import Config
 from polyscan.strategies.negrisk_arb import EventGroup
 
@@ -171,6 +171,24 @@ class TestStrategies(unittest.TestCase):
             self.assertEqual(mtm2["n_positions"], 0)
             self.assertEqual(mtm2["n_closed"], 1)
             self.assertGreater(mtm2["realized_pnl_usd"], 20.0)
+
+    def test_rewards_mm_lp_farming(self):
+        m = mk("Will Ethereum exceed $4,000 by end of year?", "ye", "ne", days=30)
+        m.rewards_daily = 100.0
+        m.rewards_max_spread = 3.5  # 3.5 cents
+        m.rewards_min_size = 50.0
+        m.volume_24h = 50000.0
+        m.liquidity = 100000.0
+        books = {"ye": ob("ye", bids=[(0.48, 200)], asks=[(0.52, 200)])}
+        opps = rewards_mm.scan([m], books, Config(mm_capital=1000.0, mm_min_daily_roi=0.0001, min_profit_usd=0.01))
+        self.assertEqual(len(opps), 1)
+        o = opps[0]
+        self.assertEqual(o.kind, "MM")
+        self.assertIn("competition_bars", o.metrics)
+        self.assertIn("maker_rebates_day_usd", o.metrics)
+        self.assertGreater(o.metrics["daily_reward_usd"], 0)
+        self.assertGreater(o.metrics["net_daily_usd"], 0)
+        self.assertGreater(o.exp_profit, 0)
 
 
 if __name__ == "__main__":

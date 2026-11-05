@@ -144,6 +144,7 @@
   <div class="stats" id="easyStats"></div>
   <div class="filters" id="easyFilters">
     <button data-ek="ALL" class="on" data-en="All Easy Picks (No Bot Needed)" data-th="โพยทำตามง่ายทั้งหมด (ไม่ต้องใช้บอท)">All Easy Picks (No Bot Needed)</button>
+    <button data-ek="FARM" data-en="LP Farming (Daily Rewards + Rebates)" data-th="LP Farming (รับเงินรางวัลรายวัน + รีเบต)">LP Farming</button>
     <button data-ek="OFFER" data-en="Instant Offer-Book Only (Zero Spread Wait)" data-th="เคาะซื้อฝั่ง Offer ทันที (ไม่ต้องตั้งรอ)">Instant Offer-Book Only</button>
     <button data-ek="LADDER" data-en="Ladder & Arbitrage (Locked / 2x Bonus)" data-th="Ladder & Arbitrage (ล็อกกำไร / ลุ้น 2 เด้ง)">Ladder & Arbitrage</button>
     <button data-ek="YIELD" data-en="Endgame High-Prob Bonds (90%–99%)" data-th="พันธบัตรตลาดใกล้จบ (โอกาสชนะ 90%–99%)">Endgame Bonds</button>
@@ -753,7 +754,7 @@ python3 -m polyscan execute &lt;OPPORTUNITY_ID&gt; --live   # ส่งคำส
       <div class="gb-callout tip"><b>100% Real Order Book Offer (Ask) Walking:</b> <code>polyscan</code> NEVER uses <code>lastTradePrice</code> or midpoints for Taker Arbitrage. Our <code>basket_walk</code> engine sweeps the actual <b>Offer (Ask) depth</b> level by level and shows exact <b>Bid / Offer / Spread</b> and <b>Offer Depth ($)</b> on every leg.</div>
       <ul>
         <li><b>Pure Offer-Book Arb (FOK):</b> Both legs buy directly from resting Sellers (Offer/Ask side) right now—zero waiting, zero spread surprise.</li>
-        <li><b>⏳ Hybrid Maker+Taker:</b> Clearly labeled when 1 leg rests a 0%-fee Bid (Maker) and 1 leg sweeps the Offer (Taker). Filter these out anytime with the <b>Instant Offer-Book Only</b> button!</li>
+        <li><b>Hybrid Maker+Taker:</b> Clearly labeled when 1 leg rests a 0%-fee Bid (Maker) and 1 leg sweeps the Offer (Taker). Filter these out anytime with the <b>Instant Offer-Book Only</b> button!</li>
       </ul>
       <h2>2. How Do We Guarantee Ladder & Cross-Market Logic Is Never Inverted?</h2>
       <ul>
@@ -766,13 +767,61 @@ python3 -m polyscan execute &lt;OPPORTUNITY_ID&gt; --live   # ส่งคำส
       <div class="gb-callout tip"><b>คำนวณจากฝั่ง Offer (Ask Order Book) จริง 100%:</b> ระบบของเรา <b>ไม่ใช้ราคาล่าสุด (Last Price) หรือราคากลาง (Midpoint)</b> ในการคำนวณ Arbitrage แต่ใช้ฟังก์ชัน <code>basket_walk</code> วิ่งไล่กวาดจำนวนหุ้นที่มีคนตั้งขายรออยู่ในฝั่ง <b>Offer (Ask)</b> ทีละชั้นจริงๆ พร้อมแสดงค่า <b>Spread</b> และ <b>วงเงินที่มีวางขายจริงฝั่ง Offer ($)</b> ให้ดูทุกขา</div>
       <ul>
         <li><b>เคาะฝั่ง Offer ทันที (Offer-Book Taker):</b> ซื้อจากฝั่งตั้งขาย (Offer) ได้ทันทีทั้ง 2 ขา ไม่ต้องกลัวปัญหาจะซื้อจริงแล้ว Spread ห่าง</li>
-        <li><b>⏳ โหมดตั้งรับ Hybrid (1 Bid + 1 Offer):</b> แยกป้ายกำกับชัดเจนสำหรับดีลที่ตั้งรอรับฝั่ง Bid 1 ขาเพื่อประหยัดค่าธรรมเนียม โดยคุณสามารถกดปุ่มกรอง <b>"เคาะซื้อฝั่ง Offer ทันที"</b> เพื่อดูเฉพาะดีลที่เคาะซื้อได้ทันทีอย่างเดียวได้เลย</li>
+        <li><b>โหมดตั้งรับ Hybrid (1 Bid + 1 Offer):</b> แยกป้ายกำกับชัดเจนสำหรับดีลที่ตั้งรอรับฝั่ง Bid 1 ขาเพื่อประหยัดค่าธรรมเนียม โดยคุณสามารถกดปุ่มกรอง <b>"เคาะซื้อฝั่ง Offer ทันที"</b> เพื่อดูเฉพาะดีลที่เคาะซื้อได้ทันทีอย่างเดียวได้เลย</li>
       </ul>
       <h2>2. ป้องกันปัญหาตรรกะ Ladder / Cross-Market ผิดพลาดอย่างไร?</h2>
       <ul>
         <li><b>แกะวันที่จากข้อความตัวเลือกโดยตรง (Explicit Date Parser):</b> อ่านวัน-เดือน-ปี จากชื่อตัวเลือกโดยตรง (เช่น <code>November 30, 2026</code> เทียบกับ <code>February 28, 2027</code>) ป้องกันปัญหา API ของ Polymarket ใส่วันหมดอายุผิดปีจนทำให้ลำดับเวลาสลับด้าน</li>
         <li><b>บล็อกตลาดแบบตัวเลือกแยกกัน (Mutually Exclusive Guard):</b> กรองตลาด <code>negRisk</code> และคำถามแบบแบ่งช่วงเวลาออกทั้งหมด พร้อมแสดง <b>กล่องพิสูจน์ผลลัพธ์ 3 กรณี</b> ให้ตรวจสอบด้วยตาเปล่าได้ทันทีในโหมดใช้ง่าย (Easy Playbook)</li>
       </ul>`
+  },
+  {
+    sec_en: "LP FARMING & REWARDS", sec_th: "LP FARMING และรางวัลสภาพคล่อง",
+    title_en: "7. LP Farming & Liquidity Rewards Masterclass", title_th: "7. คู่มือเจาะลึก Polymarket LP Farming & Maker Rebates",
+    html_en: `
+      <h1>Polymarket LP Farming & Liquidity Rewards Masterclass</h1>
+      <div class="gb-callout tip"><b>Order Book Market Making (Zero Directional Guess):</b> On Polymarket, LP farming does NOT deposit into an AMM pool. You place two-sided resting Limit Orders (Bids & Asks) inside the qualifying spread band around the midpoint. Polymarket takes random snapshots every ~60s and pays rewards daily at 00:00 UTC even if your orders are NEVER filled!</div>
+      <h2>1. The Quadratic Reward Scoring Formula</h2>
+      <div class="gb-math">S(v, s) = ((v - s) / v)^2 × min(Q, Q_max) × M_side</div>
+      <ul>
+        <li><b>v (Max Qualifying Spread):</b> Distance from midpoint allowed (e.g., ±2.5¢ to ±5.0¢).</li>
+        <li><b>s (Distance to Midpoint):</b> Distance between your limit price and the size-cut midpoint. The closer to mid, the score scales quadratically (2x tighter ≈ 4x higher score).</li>
+        <li><b>Two-Sided Requirement:</b> For prices outside 10¢–90¢, quoting BOTH sides is strictly required. Inside 10¢–90¢, two-sided quotes receive substantially higher multipliers.</li>
+      </ul>
+      <h2>2. Four Stacked Revenue Streams</h2>
+      <table>
+        <thead><tr><th>Stream</th><th>Mechanism</th><th>Estimated Yield</th></tr></thead>
+        <tbody>
+          <tr><td><b>LP Daily Rewards</b></td><td>Direct daily USDC payout from Polymarket incentive pool</td><td>30%–150% APR depending on competition</td></tr>
+          <tr><td><b>Maker Rebates</b></td><td>20%–50% share of parabolic Taker fees whenever your orders are filled</td><td>Buffer against adverse fills</td></tr>
+          <tr><td><b>Bid-Ask Spread PnL</b></td><td>Capturing buy-low sell-high roundtrips</td><td>Additional 5%–20% return</td></tr>
+          <tr><td><b>Holding Rewards</b></td><td>On-chain holding incentives on selected long-term contracts</td><td>3%–4% APY baseline</td></tr>
+        </tbody>
+      </table>
+      <h2>3. The "Split & Farm" 200% Capital Efficiency Technique</h2>
+      <p>Instead of splitting $1,000 cash into $500 YES Bid and $500 NO Bid, pass $1,000 USDC through <code>splitPosition</code> to mint 1,000 YES + 1,000 NO. Place resting Limit Asks (Sells) for both sides just above midpoint. This utilizes 100% of your capital on both sides simultaneously, doubling your qualifying LP score.</p>`,
+    html_th: `
+      <h1>คู่มือเจาะลึก Polymarket LP Farming & Maker Rebates</h1>
+      <div class="gb-callout tip"><b>การวางสภาพคล่องแบบ Order Book (ไม่ต้องเดาทิศทาง):</b> บน Polymarket การทำ LP ไม่ใช่การนำเงินไปฝากใน Pool แบบ Uniswap แต่เป็นการวาง Limit Order ประกบ 2 ฝั่ง (ซื้อ YES และ ซื้อ NO) ใกล้ราคากลาง (Midpoint) ระบบจะสุ่มถ่าย Snapshot ทุก ~60 วินาที และจ่ายเงินรางวัล USDC ทุกเที่ยงคืน UTC แม้คำสั่งจะไม่ถูกจับคู่ซื้อขายเลยก็ตาม</div>
+      <h2>1. สมการคำนวณคะแนนแบบ Quadratic</h2>
+      <div class="gb-math">S(v, s) = ((v - s) / v)^2 × min(Q, Q_max) × M_side</div>
+      <ul>
+        <li><b>v (แบนด์สูงสุดที่คิดคะแนน):</b> ระยะห่างสูงสุดจากราคากลางที่ตลาดอนุญาต (เช่น ±2.5¢ ถึง ±5.0¢)</li>
+        <li><b>s (ระยะห่างจริงจาก Midpoint):</b> ยิ่งวางคำสั่งชิดราคากลางมากเท่าไร คะแนนจะเพิ่มขึ้นแบบยกกำลังสอง (วางชิดกว่า 2 เท่า ได้คะแนนมากกว่า ~4 เท่า)</li>
+        <li><b>เงื่อนไข 2 ฝั่ง:</b> หากราคาอยู่นอกช่วง 10¢–90¢ ระบบบังคับว่าต้องวางออร์เดอร์ทั้ง 2 ฝั่งเท่านั้นจึงจะได้คะแนน</li>
+      </ul>
+      <h2>2. โครงสร้างรายได้ 4 ทางพร้อมกัน (Stacked Revenue)</h2>
+      <table>
+        <thead><tr><th>ช่องทางรายได้</th><th>กลไกการเกิดรายได้</th><th>ผลตอบแทนคาดการณ์</th></tr></thead>
+        <tbody>
+          <tr><td><b>LP Daily Rewards</b></td><td>รับส่วนแบ่งเงินรางวัล USDC รายวันจาก Pool ของ Polymarket</td><td>30%–150% APR ขึ้นกับระดับการแข่งขัน</td></tr>
+          <tr><td><b>Maker Rebates</b></td><td>รับส่วนแบ่งค่าธรรมเนียม 20%–50% จาก Taker เมื่อออร์เดอร์ถูก Fill</td><td>ช่วยชดเชยต้นทุนหากโดน Match ออร์เดอร์</td></tr>
+          <tr><td><b>ส่วนต่าง Bid-Ask Spread</b></td><td>กำไรจากการจับคู่ซื้อถูกขายแพงเมื่อตลาดขยับแกว่งในกรอบ</td><td>ผลตอบแทนเสริม 5%–20%</td></tr>
+          <tr><td><b>Holding Rewards</b></td><td>ผลตอบแทนจากการถือครองสัญญาในบางตลาดระยะยาว</td><td>3%–4% APY ขั้นต่ำ</td></tr>
+        </tbody>
+      </table>
+      <h2>3. กลยุทธ์ "Split & Farm" เพิ่มประสิทธิภาพเงินทุน 200%</h2>
+      <p>แทนที่จะเอาเงินสด $1,000 มาแบ่งตั้งรับ YES $500 และ NO $500 ให้แปลงเงินผ่านคำสั่ง <code>splitPosition</code> บน Smart Contract จะได้ 1,000 YES + 1,000 NO แล้วนำเหรียญทั้งสองฝั่งไปตั้งรอขาย (Limit Ask) เหนือราคากลาง ทำให้เงินทุน $1,000 วางทำงานได้เต็ม 100% ทั้ง 2 ฝั่งพร้อมกัน เพิ่มคะแนน LP เป็น 2 เท่าทันที</p>`
   }
 ];
 let easyFilter = "ALL";
@@ -863,7 +912,7 @@ function renderPortfolio() {
     return `<tr>
       <td><span class="k ${esc(a.kind)}">${esc(a.kind)}</span></td>
       <td class="ev">${esc(a.strategy)}</td>
-      <td><div><b>${esc(a.title)}</b> · <a href="${esc(a.url)}" target="_blank">↗</a></div><div class="ev">${esc(a.event_title)} — ${esc(rat)}</div></td>
+      <td><div><b>${esc(a.title)}</b> · <a href="${esc(a.url)}" target="_blank">[Open]</a></div><div class="ev">${esc(a.event_title)} — ${esc(rat)}</div></td>
       <td class="num">$${fmt(a.recommended_usd)}</td>
       <td class="num">${pct(a.kelly_pct)}</td>
       <td class="num pos">+$${fmt(a.expected_profit_usd)}</td>
@@ -908,7 +957,7 @@ function renderPaper() {
     ).join("");
     return `<tr>
       <td><span class="k ${esc(p.kind)}">${esc(p.kind)}</span><div class="ev">${esc(p.strategy)}</div></td>
-      <td><div><b>${esc(p.title)}</b> · <a href="${esc(p.url)}" target="_blank">↗</a></div><div class="ev">${esc(p.event_title)}</div><div style="margin-top:4px">${legsStr}</div></td>
+      <td><div><b>${esc(p.title)}</b> · <a href="${esc(p.url)}" target="_blank">[Open]</a></div><div class="ev">${esc(p.event_title)}</div><div style="margin-top:4px">${legsStr}</div></td>
       <td class="num">$${fmt(p.allocated_usd)}</td>
       <td class="num">$${fmt(p.mark_value_usd)}</td>
       <td class="num">$${fmt(p.locked_payout_usd)}</td>
@@ -946,12 +995,14 @@ function getBookBadge(o) {
   const dep = (o.metrics && o.metrics.min_offer_depth_usd != null) ? "$" + fmt(o.metrics.min_offer_depth_usd, 0) : null;
   const sub = (sp || dep) ? `<div class="ev">Spread ${sp || '≤2¢'} · Offer Depth ${dep || '$500+'}</div>` : "";
   if (o.kind === "MM") {
-    return `<span class="maker-tag">${lang==='th'?'วางรับ-ขาย 2 ฝั่ง (MM)':'2-Sided Maker Quote'}</span>${sub}`;
+    const comp = o.metrics && o.metrics.competition_label ? ` · Comp: ${o.metrics.competition_label}` : "";
+    const pool = o.metrics && o.metrics.daily_pool_usd ? ` ($${fmt(o.metrics.daily_pool_usd,0)}/d)` : "";
+    return `<span class="maker-tag">${lang==='th'?'วางรับ 2 ฝั่ง LP Farm':'LP Farming Quote'}${pool}${comp}</span>${sub}`;
   }
   if (isPureOffer(o)) {
     return `<span class="offer-tag">${lang==='th'?'ราคาฝั่ง Offer จริง (เคาะทันที)':'Real Offer Book (Instant)'}</span>${sub}`;
   }
-  return `<span class="maker-tag">⏳ ${lang==='th'?'ตั้งรับ Bid 1 ขา + เคาะ Offer':'Hybrid (1 Bid + 1 Offer)'}</span>${sub}`;
+  return `<span class="maker-tag">${lang==='th'?'ตั้งรับ Bid 1 ขา + เคาะ Offer':'Hybrid (1 Bid + 1 Offer)'}</span>${sub}`;
 }
 
 function renderEasy() {
@@ -960,8 +1011,10 @@ function renderEasy() {
   const offerArbs = ops.filter(o => (o.kind === "ARB" || o.kind === "ARB*") && isPureOffer(o));
   const ladders = ops.filter(o => o.strategy === "ladder_arb" || o.strategy === "cross_market_arb");
   const yields = ops.filter(o => o.kind === "YIELD");
+  const farmOpps = ops.filter(o => o.kind === "MM");
   const eStats = [
     [lang==="th"?"ดีลเคาะฝั่ง Offer ได้ทันที":"Instant Offer-Book Arbs", fmt(offerArbs.length, 0)],
+    [lang==="th"?"พูล LP Farming ที่เปิดรับ":"Active LP Farming Pools", fmt(farmOpps.length, 0) + (farmOpps.length ? ` ($${fmt(farmOpps.reduce((s,x)=>s+(x.metrics?.daily_pool_usd||0),0),0)}/d)` : "")],
     [lang==="th"?"ดีลขั้นบันได (Ladder ลุ้น 2 เด้ง)":"Ladder Deals (2x Bonus)", fmt(ladders.length, 0)],
     [lang==="th"?"พันธบัตรตลาดใกล้จบ (90–99%)":"Endgame Near-Certain Bonds", fmt(yields.length, 0)],
     [lang==="th"?"มูลค่าพอร์ตจำลองของคุณ":"Your Paper Portfolio", `$${fmt(mtm.equity_usd, 0)} (${mtm.unrealized_pnl_usd>=0?'+':''}$${fmt(mtm.unrealized_pnl_usd)})`]
@@ -969,10 +1022,11 @@ function renderEasy() {
   $("#easyStats").innerHTML = eStats.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
 
   let list = ops.filter(o => {
+    if (easyFilter === "FARM") return o.kind === "MM";
     if (easyFilter === "OFFER") return isPureOffer(o) && (o.kind === "ARB" || o.kind === "ARB*" || o.kind === "YIELD");
     if (easyFilter === "LADDER") return o.strategy === "ladder_arb" || o.strategy === "cross_market_arb" || o.kind === "ARB" || o.kind === "ARB*";
     if (easyFilter === "YIELD") return o.kind === "YIELD";
-    return o.kind === "ARB" || o.kind === "ARB*" || o.kind === "YIELD" || o.score >= 25;
+    return o.kind === "ARB" || o.kind === "ARB*" || o.kind === "YIELD" || o.kind === "MM" || o.score >= 25;
   });
 
   $("#easyCards").innerHTML = list.slice(0, 24).map((o, idx) => {
@@ -995,7 +1049,31 @@ function renderEasy() {
     }).join("");
 
     let proofHtml = "";
-    if (o.strategy === "ladder_arb" || o.strategy === "cross_market_arb") {
+    if (o.kind === "MM") {
+      const m = o.metrics || {};
+      const poolD = m.daily_pool_usd ?? m.daily_reward ?? 100;
+      const netD = m.net_daily_usd ?? (o.exp_profit / Math.max(o.days || 7, 1));
+      const rebD = m.maker_rebates_day_usd ?? 0;
+      const compLbl = m.competition_label ?? "Moderate";
+      const compBars = m.competition_bars ?? 3;
+      const minSh = m.min_size_shares ?? 50;
+      const vC = m.v_c ?? (m.max_spread_c || 3.5);
+      const aprVal = ((netD * 365) / Math.max(o.capital, 1)) * 100;
+
+      proofHtml = lang === "th"
+        ? `<div class="proof-box"><b>รายละเอียดผลตอบแทน LP Farming & Maker Rebates:</b>
+            <div>• รางวัลรวมของพูลนี้: <b>$${fmt(poolD,0)}/วัน</b> | ระดับการแข่งขัน: <b>${compLbl} (${compBars}/5)</b></div>
+            <div>• ผลตอบแทนสุทธิคาดการณ์: <b class="pos">+$${fmt(netD * scale, 2)}/วัน</b> (APR ${fmt(aprVal,0)}%)</div>
+            <div>• โบนัส Maker Rebates: +$${fmt(rebD * scale, 2)}/วัน | หัก Adverse Selection: -$${fmt((m.adverse_selection_usd || 0) * scale, 2)}/วัน</div>
+            <div>• กรอบราคาที่คิดคะแนน: ภายใน <b>±${fmt(vC,1)}¢</b> จาก Midpoint (ขั้นต่ำ ${fmt(minSh,0)} หุ้น)</div>
+           </div>`
+        : `<div class="proof-box"><b>LP Farming & Maker Rebates Yield Breakdown:</b>
+            <div>• Daily Incentive Pool: <b>$${fmt(poolD,0)}/day</b> | Competition: <b>${compLbl} (${compBars}/5)</b></div>
+            <div>• Net Expected Yield: <b class="pos">+$${fmt(netD * scale, 2)}/day</b> (APR ${fmt(aprVal,0)}%)</div>
+            <div>• Maker Rebate Bonus: +$${fmt(rebD * scale, 2)}/day | Less Adverse Selection: -$${fmt((m.adverse_selection_usd || 0) * scale, 2)}/day</div>
+            <div>• Qualifying Band: Within <b>±${fmt(vC,1)}¢</b> from Midpoint (Min ${fmt(minSh,0)} shares)</div>
+           </div>`;
+    } else if (o.strategy === "ladder_arb" || o.strategy === "cross_market_arb") {
       const stL = (o.metrics && o.metrics.strong_label) || (o.legs[1] && o.legs[1].outcome) || "Harder";
       const wkL = (o.metrics && o.metrics.weak_label) || (o.legs[0] && o.legs[0].outcome) || "Easier";
       proofHtml = lang === "th"
@@ -1011,6 +1089,10 @@ function renderEasy() {
            </div>`;
     }
 
+    const step3Action = o.kind === "MM"
+      ? (lang === "th" ? `เริ่มฟาร์ม Paper Farm ($${fmt(kUsd,0)})` : `Start Paper Farm ($${fmt(kUsd,0)})`)
+      : (lang === "th" ? `กดลองซื้อจำลองทันที ($${fmt(kUsd,0)})` : `1-Click Paper Trade ($${fmt(kUsd,0)})`);
+
     return `<div class="easy-card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="k ${esc(o.kind)}">${esc(o.kind)} · ${esc(o.strategy)}</span>
@@ -1023,10 +1105,10 @@ function renderEasy() {
       ${proofHtml}
       <div class="easy-step">
         <b class="st-num">${lang==='th'?'ขั้นตอนที่ 1 — เปิดหน้าตลาด':'STEP 1 — OPEN MARKET PAGE'}</b>
-        <a href="${esc(o.url)}" target="_blank" class="btn-act pri" style="display:inline-block;margin-top:2px">1⃣ ${lang==='th'?'กดเปิดหน้าตลาด Polymarket ↗':'Open Polymarket Page ↗'}</a>
+        <a href="${esc(o.url)}" target="_blank" class="btn-act pri" style="display:inline-block;margin-top:2px">1. ${lang==='th'?'กดเปิดหน้าตลาด Polymarket [Link]':'Open Polymarket Page [Link]'}</a>
       </div>
       <div class="easy-step">
-        <b class="st-num">${lang==='th'?'ขั้นตอนที่ 2 — กดซื้อตามใบสั่งนี้ (ไม่ต้องใช้บอท)':'STEP 2 — CLICK BUY ON THESE EXACT OPTIONS (NO BOT NEEDED)'}</b>
+        <b class="st-num">${lang==='th'?(o.kind==='MM'?'ขั้นตอนที่ 2 — วาง Limit Order 2 ฝั่ง (รับคะแนนรายวัน)':'ขั้นตอนที่ 2 — กดซื้อตามใบสั่งนี้ (ไม่ต้องใช้บอท)'):(o.kind==='MM'?'STEP 2 — PLACE 2-SIDED LIMIT ORDERS':'STEP 2 — CLICK BUY ON THESE EXACT OPTIONS')}</b>
         ${legsHtml}
       </div>
       <div class="easy-step" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1034,7 +1116,7 @@ function renderEasy() {
           <b class="st-num">${lang==='th'?'ขั้นตอนที่ 3 — ผลลัพธ์เมื่อลงทุนตามแนะนำ':'STEP 3 — EXPECTED PAYOUT & PAPER TEST'}</b>
           <div>${lang==='th'?'ลงเงิน':'Invest'} <b>$${fmt(kUsd,0)}</b> → ${lang==='th'?'กำไรสุทธิ':'Net Profit'} <b class="pos">+$${fmt(expProf)} (${pct(o.roi)})</b></div>
         </div>
-        <button class="btn-act green" onclick="paperAction('open',{id:'${o.id}',amount_usd:${kUsd}})">${lang==='th'?'กดลองซื้อจำลองทันที ($'+fmt(kUsd,0)+')':'1-Click Paper Trade ($'+fmt(kUsd,0)+')'}</button>
+        <button class="btn-act green" onclick="paperAction('open',{id:'${o.id}',amount_usd:${kUsd}})">${step3Action}</button>
       </div>
     </div>`;
   }).join("");
@@ -1075,7 +1157,7 @@ function render() {
     const kUsd = (o.metrics && o.metrics.kelly_usd) ? o.metrics.kelly_usd : Math.min(250, o.capital);
     const main = `<tr class="row ${fl}" data-id="${o.id}">
       <td><span class="k ${esc(o.kind)}">${esc(o.kind)}</span><div class="ev">${esc(o.strategy)}</div></td>
-      <td><div><b>${esc(o.title)}</b></div><div class="ev">${esc(o.event_title)} · <a href="${esc(o.url)}" target="_blank">open ↗</a> · id ${o.id}</div></td>
+      <td><div><b>${esc(o.title)}</b></div><div class="ev">${esc(o.event_title)} · <a href="${esc(o.url)}" target="_blank">open [Link]</a> · id ${o.id}</div></td>
       <td>${getBookBadge(o)}</td>
       <td class="num">${fmt(o.capital, 0)}</td><td class="num pos">+${fmt(o.exp_profit)}</td>
       <td class="num">${pct(o.roi)}</td><td class="num">${o.days == null ? "–" : fmt(o.days, 1)}</td>

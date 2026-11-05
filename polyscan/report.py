@@ -76,6 +76,32 @@ def print_detail(o) -> None:
         print(f"   • {n}")
 
 
+def print_farm_leaderboard(opps: list, top: int = 25) -> None:
+    farm_opps = [o for o in opps if o.kind == MM]
+    if not farm_opps:
+        print("ยังไม่พบตลาด LP Farming ที่ผ่านเกณฑ์ — ลองสแกนรอบใหม่หรือลดเกณฑ์ mm_min_daily_roi")
+        return
+    print(f"\n{BOLD}=== Polymarket LP Farming & Liquidity Rewards Desk ==={RESET}")
+    print(f"Active Farming Pools Found: {len(farm_opps)} pools | Total Daily Incentives: ${sum(o.metrics.get('daily_pool_usd', 0) for o in farm_opps):,.0f}/day")
+    hdr = f"{'#':>2} {'ID':<10} {'COMP':<10} {'POOL/d':>8} {'SHARE':>7} {'REWARD/d':>9} {'REBATE/d':>9} {'NET/d':>8} {'APR':>7} {'TIGHT (BID/ASK)':<18} {'MIN SH':>7}  MARKET"
+    print(BOLD + hdr + RESET)
+    print("-" * 135)
+    for i, o in enumerate(farm_opps[:top], 1):
+        m = o.metrics or {}
+        comp_str = f"{m.get('competition_label', 'Med')} ({m.get('competition_bars', 3)}/5)"
+        pool_d = m.get('daily_pool_usd', 0.0)
+        share = m.get('pool_share_pct', 0.0)
+        rew_d = m.get('daily_reward_usd', 0.0)
+        reb_d = m.get('maker_rebates_day_usd', 0.0)
+        net_d = m.get('net_daily_usd', 0.0)
+        apr = (net_d * 365 / max(o.capital, 1.0)) if o.capital > 0 else 0.0
+        tight_s = f"{m.get('tight_bid', 0.0):.3f} / {m.get('tight_ask', 0.0):.3f}"
+        min_sh = m.get('min_size_shares', 0.0)
+        print(f"{i:>2} {o.id:<10} {comp_str:<10} ${pool_d:>7.0f} {share:>6.1%} ${rew_d:>8.2f} "
+              f"${reb_d:>8.2f} ${net_d:>7.2f} {apr:>6.0%} {tight_s:<18} {min_sh:>7.0f}  {_trunc(o.event_title, 42)}")
+    print("\nAction: วาง Limit Order สองฝั่งภายในแบนด์ ±v จาก Midpoint | หรือรัน `python3 -m polyscan execute <ID>` เพื่อตรวจสอบ Order Book สด")
+
+
 def save_result(res: ScanResult, out_dir: str) -> tuple[Path, Path]:
     d = Path(out_dir)
     d.mkdir(parents=True, exist_ok=True)

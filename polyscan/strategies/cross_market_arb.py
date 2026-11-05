@@ -129,7 +129,7 @@ def _emit_pair_arb(
             return Opportunity(
                 strategy=NAME, kind=ARB,
                 title=f"[{sub_type}] YES[{weak.label[:28]}] + NO[{strong.label[:28]}] = {sum(f.avg_prices):.3f} (Offer Book)",
-                event_title=f"{weak.event_title[:40]} ↔ {strong.event_title[:40]}" if weak.event_id != strong.event_id else weak.event_title,
+                event_title=f"{weak.event_title[:40]} <-> {strong.event_title[:40]}" if weak.event_id != strong.event_id else weak.event_title,
                 url=weak.url,
                 legs=[
                     Leg(weak.yes.token_id, f"{weak.label} [Yes]", weak.question, "BUY",
@@ -165,7 +165,7 @@ def _emit_pair_arb(
         return Opportunity(
             strategy=NAME, kind=ARB,
             title=f"HYBRID [{sub_type}] YES[{weak.label[:24]}] + NO[{strong.label[:24]}] = {sum(f.avg_prices):.3f}",
-            event_title=f"{weak.event_title[:40]} ↔ {strong.event_title[:40]}" if weak.event_id != strong.event_id else weak.event_title,
+            event_title=f"{weak.event_title[:40]} <-> {strong.event_title[:40]}" if weak.event_id != strong.event_id else weak.event_title,
             url=weak.url,
             legs=[
                 Leg(weak.yes.token_id, f"{weak.label} [Yes]" + (" (Maker Bid)" if maker_leg == 0 else " (Offer Taker)"),

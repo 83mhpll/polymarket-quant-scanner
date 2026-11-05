@@ -17,7 +17,7 @@ from pathlib import Path
 
 from .alerts import send_alerts
 from .config import Config
-from .report import print_detail, print_portfolio, print_result, save_result
+from .report import print_detail, print_farm_leaderboard, print_portfolio, print_result, save_result
 from .scanner import run_scan
 from .strategies import ALL
 from .strategies.base import Opportunity
@@ -48,6 +48,8 @@ def main(argv: list[str] | None = None) -> None:
     w = sub.add_parser("watch"); w.add_argument("--interval", type=int); w.add_argument("--top", type=int, default=25)
     d = sub.add_parser("dashboard"); d.add_argument("--port", type=int, default=8080); d.add_argument("--host", default="127.0.0.1")
     d.add_argument("--interval", type=int)
+    fm = sub.add_parser("farm", help="show Polymarket LP Farming & Liquidity Rewards leaderboard")
+    fm.add_argument("--top", type=int, default=25)
     sh = sub.add_parser("show"); sh.add_argument("id")
     pf = sub.add_parser("portfolio", help="show optimal Kelly portfolio & paper-trading PnL")
     ex = sub.add_parser("execute"); ex.add_argument("id"); ex.add_argument("--live", action="store_true")
@@ -84,6 +86,21 @@ def main(argv: list[str] | None = None) -> None:
     elif a.cmd == "dashboard":
         from .dashboard import serve
         serve(cfg, a.host, a.port, strategies)
+    elif a.cmd == "farm":
+        p = Path(cfg.output_dir) / "latest.json"
+        if not p.exists():
+            print("ยังไม่มีผลสแกนในเครื่อง กำลังสแกนตลาดสดให้อัตโนมัติ...")
+            res = asyncio.run(run_scan(cfg, ["rewards_mm"]))
+            save_result(res, cfg.output_dir)
+            opps = res.opportunities
+        else:
+            d = json.loads(p.read_text())
+            opps = [Opportunity.from_dict(o) for o in d.get("opportunities", [])]
+            if not any(o.kind == "MM" for o in opps):
+                res = asyncio.run(run_scan(cfg, ["rewards_mm"]))
+                save_result(res, cfg.output_dir)
+                opps = res.opportunities
+        print_farm_leaderboard(opps, a.top)
     elif a.cmd == "show":
         print_detail(_load_opp(cfg, a.id))
     elif a.cmd == "portfolio":

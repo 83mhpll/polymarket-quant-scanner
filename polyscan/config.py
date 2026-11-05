@@ -51,8 +51,6 @@ class Config:
     signal_min_z: float = 2.0
 
     # ---------- infra ----------
-    chain_id: int = 137                # 137 = Polygon Mainnet, 80002 = Polygon Amoy Testnet
-    testnet_mode: bool = True          # Shadow-Testnet sandbox mode enabled by default for safe execution
     concurrency: int = 8
     request_timeout: float = 30.0
     scan_interval: int = 60

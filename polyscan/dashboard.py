@@ -62,7 +62,11 @@ async def scan_loop(app: web.Application) -> None:
 
 
 async def index(_: web.Request) -> web.Response:
-    return web.Response(text=HTML.read_text(encoding="utf-8"), content_type="text/html")
+    return web.Response(
+        text=HTML.read_text(encoding="utf-8"),
+        content_type="text/html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )
 
 
 async def api_result(req: web.Request) -> web.Response:

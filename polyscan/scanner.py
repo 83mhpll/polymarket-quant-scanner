@@ -229,7 +229,7 @@ class RealtimeScanner:
                     tokens.add(o.token_id)
         ranked_m = sorted(
             self.markets_all,
-            key=lambda m: (m.rewards_daily_usd * 50.0 + m.volume_24h * 0.001 + (500.0 if m.neg_risk else 0.0)),
+            key=lambda m: (m.rewards_daily * 50.0 + m.volume_24h * 0.001 + (500.0 if m.neg_risk else 0.0)),
             reverse=True,
         )
         for m in ranked_m[:220]:

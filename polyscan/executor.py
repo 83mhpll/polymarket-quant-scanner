@@ -97,7 +97,8 @@ class Executor:
             raise SystemExit("ต้องตั้งค่า POLY_PRIVATE_KEY ก่อนใช้ --live")
         funder = os.getenv("POLY_FUNDER") or None
         sig = int(os.getenv("POLY_SIGNATURE_TYPE", "1"))
-        self.client = ClobClient(CLOB_URL, key=pk, chain_id=137, signature_type=sig, funder=funder)
+        chain_id = int(os.getenv("POLY_CHAIN_ID", str(getattr(self.cfg, "chain_id", 137))))
+        self.client = ClobClient(CLOB_URL, key=pk, chain_id=chain_id, signature_type=sig, funder=funder)
         self.client.set_api_creds(self.client.create_or_derive_api_creds())
 
     def _record(self, payload: dict) -> None:

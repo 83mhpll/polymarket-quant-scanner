@@ -67,11 +67,11 @@ def scan(markets: list[Market], books: dict[str, OrderBook], cfg: Config) -> lis
                 notes.append("เลยวันสิ้นสุดแล้ว — รอ UMA resolve (มักเป็นช่วงความเสี่ยงต่ำ ถ้าผลชัดเจน)")
                 notes_en.append("Past end date — awaiting UMA resolution (typically low risk if outcome is clear)")
             if disputed:
-                notes.append("⚠️ มีประวัติ dispute ใน UMA")
-                notes_en.append("⚠️ Active or historical UMA dispute")
+                notes.append("มีประวัติ dispute ใน UMA")
+                notes_en.append("Active or historical UMA dispute")
             if abs(m.one_day_change) > 0.03:
-                notes.append(f"⚠️ ราคาเคลื่อน {m.one_day_change:+.2%} ใน 24 ชม. — ตลาดยังไม่นิ่ง")
-                notes_en.append(f"⚠️ Price moved {m.one_day_change:+.2%} in 24h — market still volatile")
+                notes.append(f"ราคาเคลื่อน {m.one_day_change:+.2%} ใน 24 ชม. — ตลาดยังไม่นิ่ง")
+                notes_en.append(f"Price moved {m.one_day_change:+.2%} in 24h — market still volatile")
             opps.append(Opportunity(
                 strategy=NAME, kind=YIELD,
                 title=f"BUY {o.name} @ ≤{a + cfg.endgame_price_window:.3f} ({m.label})",

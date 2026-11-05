@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> None:
                 save_result(res, cfg.output_dir)
                 n = await send_alerts(res.opportunities, cfg)
                 if n:
-                    print(f"\n🔔 sent {n} alert(s)")
+                    print(f"\nsent {n} alert(s)")
                 await asyncio.sleep(cfg.scan_interval)
         try:
             asyncio.run(loop())
@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"\nre-validation: {why}")
         if not ok:
             sys.exit(1)
-        mode = "LIVE 🔴" if a.live else "DRY-RUN"
+        mode = "LIVE " if a.live else "DRY-RUN"
         if a.live and not a.yes:
             if input(f"ส่งคำสั่ง {mode} ทุน ${opp.capital:,.2f}? พิมพ์ 'yes' เพื่อยืนยัน: ").strip().lower() != "yes":
                 sys.exit("ยกเลิก")
